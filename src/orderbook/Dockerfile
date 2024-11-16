@@ -5,4 +5,4 @@ COPY . /app/
 
 WORKDIR /app
 
-RUN python3 entrypoint.py
+ENTRYPOINT ["python3", "entrypoint.py"]

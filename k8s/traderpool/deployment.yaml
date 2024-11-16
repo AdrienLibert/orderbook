@@ -1,0 +1,22 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: traderpool
+  name: traderpool-deployment
+  namespace: orderbook
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: traderpool
+  template:
+    metadata:
+      labels:
+        app: traderpool
+    spec:
+      containers:
+      - name: traderpool
+        image: local/traderpool
+        imagePullPolicy: IfNotPresent
