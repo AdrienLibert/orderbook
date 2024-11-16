@@ -13,6 +13,16 @@ pyenv activate orderbook
 
 ## Local
 
+### Dependencies
+
+K8S local needs some dependencies
+```
+brew install docker
+brew install helm
+```
+
+### Build
+
 Build images
 ```
 make build
