@@ -1,0 +1,9 @@
+topics:
+  - buy.order.topic:
+      partition: 1
+      optionA: A
+      optionB: B
+  - sell.order.topic:
+      partition: 1
+      optionA: X
+      optionB: Y
