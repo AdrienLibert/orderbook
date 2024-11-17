@@ -56,7 +56,7 @@ class TopicManager:
         return topic_config
     
     # Create the topic in Kafka
-    def _create_topic(self, topic_name):   
+    def create_topic(self, topic_name):   
             topic_config = self.config_topic(topic_name) # Get the configuration for the topic      
             topic_details = topic_config[topic_name] # Get the details for the topic
             new_topic = NewTopic( # Create a NewTopic object
@@ -72,7 +72,7 @@ class TopicManager:
                 print(f"Failed to create topic '{topic_name}': {e}")
                 
     # Update the topic in Kafka
-    def _update_topic(self, topic_name):
+    def update_topic(self, topic_name):
         topic_config = self.config_topic(topic_name) # Get the configuration for the topic
         topic_details = topic_config[topic_name]
         configs = {k: str(v) for k, v in topic_details.items() if k not in ["partition"]} # Set the topic configuration (excluding partition)
@@ -83,7 +83,7 @@ class TopicManager:
             print(f"Failed to update topic '{topic_name}': {e}")
 
     # Delete the topic from Kafka
-    def _delete_topic(self, topic_name):
+    def delete_topic(self, topic_name):
         try:
             self.admin_client.delete_topics([topic_name])
             print(f"Topic '{topic_name}' deleted successfully.")
