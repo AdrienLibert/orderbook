@@ -1,11 +1,18 @@
 # Build all images
-build: build_orderbook build_traderpool
+build: build_drgn build_kafkainit build_orderbook build_traderpool
+
+build_drgn:
+	cd src/drgn && \
+	uv build
+
+build_kafkainit:
+	docker build -t local/kafka-init -f src/kafka_init/Dockerfile src
 
 build_orderbook:
-	docker build -t local/orderbook -f src/orderbook/Dockerfile src/orderbook/
+	docker build -t local/orderbook -f src/orderbook/Dockerfile src
 
 build_traderpool:
-	docker build -t local/traderpool -f src/traderpool/Dockerfile src/traderpool/
+	docker build -t local/traderpool -f src/traderpool/Dockerfile src
 
 helm:
 	helm repo add bitnami https://charts.bitnami.com/bitnami
@@ -23,6 +30,12 @@ forward_kafka:
 stop_kafka:
 	helm uninstall bitnami -n orderbook
 
+start_kafkainit:
+	kubectl apply -f k8s/kafka_init/
+
+stop_kafkainit:
+	kubectl delete -f k8s/kafka_init/ --ignore-not-found
+
 start_orderbook:
 	kubectl apply -f k8s/namespace.yaml
 	kubectl apply -f k8s/orderbook/
@@ -39,4 +52,4 @@ stop_traderpool:
 
 make start: start_kafka start_orderbook start_traderpool
 
-make stop: stop_kafka stop_orderbook stop_traderpool
+make stop: stop_kafka stop_orderbook stop_traderpool stop_kafkainit

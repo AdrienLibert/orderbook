@@ -1,0 +1,28 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  labels:
+    app: kafka-init
+  name: kafka-init-job
+  namespace: orderbook
+spec:
+  template:
+    metadata:
+      labels:
+        app: kafka-init
+    spec:
+      containers:
+      - name: kafka-init
+        image: local/kafka-init
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: OB__KAFKA__TOPICS_CONFIG
+          value: /app/topics_config.yaml
+        - name: OB__KAFKA__BOOTSTRAP_SERVERS
+          value: bitnami-kafka:9092
+        - name: OB__KAFKA__SECURITY_PROTOCOL
+          value: PLAINTEXT
+        - name: CONFIG_PATH
+          value: /app/task.conf
+      restartPolicy: Never

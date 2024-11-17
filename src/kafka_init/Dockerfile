@@ -1,7 +1,7 @@
 FROM python:3.12.1-bullseye
 
 RUN mkdir /app
-COPY ./traderpool /app/
+COPY ./kafka_init /app/
 RUN mkdir /app/dist
 COPY ./drgn/dist/ /app/dist
 

@@ -2,13 +2,18 @@
 
 ## Dev setup
 
-Setup some local python dev toolkit. Latest stable python on pyenv is 3.12.1
-
+Setup some local python dev toolkit. Latest stable python on pyenv is 3.12.1.
 ```
 brew install pyenv
 pyenv install 3.12.1
 pyenv virtualenv 3.12.1 orderbook
 pyenv activate orderbook
+```
+
+Install local requirements will need you to build our custom library named "drgn".
+```
+make build_lib
+uv pip install -r requirements-dev.txt --find-links $PWD/src/drgn/dist/
 ```
 
 ## Local
@@ -43,6 +48,7 @@ If other charts are used in the future, they will be added here.
 Start Kafka relied on Helm install. Some custom values are provided in helm-values directory.
 ```
 make start_kafka
+make start_kafkainit # will be moved later to start_kafka as part of the start protocol
 ```
 
 Start agents from custom built images.
