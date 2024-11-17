@@ -1,0 +1,5 @@
+topics:
+  - buy.order.topic:
+      partition: 1
+  - sell.order.topic:
+      partition: 1
