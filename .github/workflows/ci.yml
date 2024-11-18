@@ -14,6 +14,18 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Install Kind
+      run: |
+        curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.25.0/kind-linux-amd64
+        chmod +x ./kind
+        sudo mv ./kind /usr/local/bin/kind
+
+    - name: Create Kind Cluster
+      run: kind create cluster --name orderbook
+
+    - name: Set Kubernetes context
+      run: kubectl config use-context kind-orderbook
+
     - name: Helm
       run: make helm
 
