@@ -1,1 +1,6 @@
 **/__pycache__/**
+src/lib/build
+src/lib/dist
+src/lib/drgn.egg-info
+dist/
+**/.venv/

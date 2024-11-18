@@ -1,24 +1,20 @@
 ---
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: batch/v1
+kind: Job
 metadata:
   labels:
-    app: traderpool
-  name: traderpool-deployment
+    app: kafka-init
+  name: kafka-init-job
   namespace: orderbook
 spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: traderpool
   template:
     metadata:
       labels:
-        app: traderpool
+        app: kafka-init
     spec:
       containers:
-      - name: traderpool
-        image: local/traderpool
+      - name: kafka-init
+        image: local/kafka-init
         imagePullPolicy: IfNotPresent
         env:
         - name: OB__KAFKA__TOPICS_CONFIG
@@ -29,5 +25,4 @@ spec:
           value: PLAINTEXT
         - name: CONFIG_PATH
           value: /app/task.conf
-        - name: PYTHONUNBUFFERED
-          value: "1"
+      restartPolicy: Never

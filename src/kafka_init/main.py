@@ -1,8 +1,8 @@
 import yaml
 from confluent_kafka.admin import AdminClient, NewTopic, TopicMetadata
 from enum import StrEnum
-
-kafka_config = {"bootstrap.servers": "localhost:9092", "security.protocol": "PLAINTEXT"}
+from drgn.config import env_config
+from drgn.kafka import kafka_config
 
 
 def load_yaml(path: str) -> dict:
@@ -101,11 +101,10 @@ class KafkaTopicSynchronizer:
         print(f"topic '{topic}' deleted successfully.")
 
 
-if __name__ == "__main__":
-    admin_client = AdminClient(kafka_config)
-
-    config = load_yaml("src/kafka_init/test.yaml")
+def main():
+    config = load_yaml(env_config["kafka"]["topics_config"])
     topics_config = [TopicConfig(topic) for topic in config["topics"]] if config else []
 
+    admin_client = AdminClient(kafka_config)
     topic_manager = KafkaTopicSynchronizer(admin_client, topics_config)
     topic_manager.run()
