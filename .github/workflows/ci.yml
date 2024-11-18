@@ -1,0 +1,34 @@
+name: Makefile CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: configure
+      run: ./configure
+
+    - name: Helm
+      run: make helm
+
+    - name: Build all images
+      run: make build
+
+    - name: Start
+      run: make start
+
+    - name: Stop
+      run: make stop
+
+    - name: Clean
+      run: clear_helm
+      
