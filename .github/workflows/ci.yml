@@ -37,7 +37,3 @@ jobs:
 
     - name: Stop
       run: make stop
-
-    - name: Clean
-      run: clear_helm
-      
