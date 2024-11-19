@@ -69,20 +69,20 @@ Order
 Order :
 ```
 {
-  "order_id": { "type": "integer", "description": "Unique identifier for the order" },
-  "order_type": { "type": "string", "enum": ["buy", "sell"], "description": "Type of order" },
-  "price": { "type": "number", "description": "Price of the order" },
-  "quantity": { "type": "integer", "minimum": 1, "description": "Quantity of the asset" }
+  "order_id": { "type": "int", "description": "Unique identifier for the order" },
+  "order_type": { "type": "str", "enum": ["buy", "sell"], "description": "Type of order" },
+  "price": { "type": "int", "description": "Price of the order" },
+  "quantity": { "type": "int", "minimum": 1, "description": "Quantity of the asset" }
 }
 ```
 Orderbook :
 ```
 {
   "bids": [
-    { "price": { "type": "number" }, "quantity": { "type": "integer" } }
+    { "price": { "type": "int" }, "quantity": { "type": "int" } }
   ],
   "asks": [
-    { "price": { "type": "number" }, "quantity": { "type": "integer" } }
+    { "price": { "type": "int" }, "quantity": { "type": "int" } }
   ]
 }
 ```
