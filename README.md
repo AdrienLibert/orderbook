@@ -90,5 +90,5 @@ Orderbook :
 ### Forward
 We use a custom NodePort svc for external connection. This is using the 9094 and being relayed on localhost:9094:
 ```
-kubectl port-forward svc/bitnami-kafka-controller-0-external 9094:9094
+kubectl port-forward svc/bitnami-kafka-controller-0-external 9094:9094 -n orderbook
 ```

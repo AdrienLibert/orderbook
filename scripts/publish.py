@@ -10,8 +10,8 @@ import json
 
 
 # defined in topics_config.yaml. if changed, need to rebuild the image.
-TOPIC = "orders.topic"
 
+TOPIC = "order.topic"
 
 def produce_buy_order(producer: Producer):
     msg = {
@@ -24,6 +24,7 @@ def produce_buy_order(producer: Producer):
 
     producer.produce(TOPIC, bytes(json.dumps(msg), "utf-8"))
     producer.flush()
+    print(f"Message produced to topic '{TOPIC}': {msg}")
 
 
 if __name__ == "__main__":

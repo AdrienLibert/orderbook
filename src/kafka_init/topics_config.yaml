@@ -1,3 +1,10 @@
 topics:
-  - orders.topic:
-      partition: 1
+  order_buy:
+    name: "order.buy.topic"
+    partitions: 1
+  order_sell:
+    name: "order.sell.topic"
+    partitions: 1
+  orderbook:
+    name: "orderbook.topic"
+    partitions: 1
