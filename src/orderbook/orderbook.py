@@ -1,10 +1,14 @@
-from Order import Order
-
 class OrderBook:
     def __init__(self, bid, ask):
         self.bid = bid  # Stack for bids
         self.ask = ask  # Stack for asks
 
+    def get_bid(self):
+        return self.bid
+    
+    def get_ask(self):
+        return self.ask
+    
     def _get_best_bid(self):
         return self.bid.peek()
 

@@ -33,11 +33,3 @@ class Stack:
     
     def __str__(self):
         return str(self.order)
-    
-    def to_dict(self):
-        return {
-            "order": self.order
-        }
-    
-    def __repr__(self):
-        return json.dumps(self.to_dict())  # Pour une conversion JSON automatique

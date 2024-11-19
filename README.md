@@ -12,7 +12,7 @@ pyenv activate orderbook
 
 Install local requirements will need you to build our custom library named "drgn".
 ```
-make build_lib
+make build_drgn
 uv pip install -r requirements-dev.txt --find-links $PWD/src/drgn/dist/
 ```
 
