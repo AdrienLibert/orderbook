@@ -23,6 +23,7 @@ clear_helm:
 
 start_kafka:
 	helm upgrade --install bitnami bitnami/kafka --version 31.0.0 -n orderbook --create-namespace -f helm-values/values-local.yaml
+	kubectl apply -f k8s/kafka_init/
 
 forward_kafka:
 	kubectl port-forward --namespace orderbook svc/bitnami-kafka 9092:9092
