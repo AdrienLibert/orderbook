@@ -6,11 +6,18 @@ class Stack:
 
     def is_empty(self):
         return len(self.order) == 0
-
-    def push(self, price, quantity):
-        self.order.append({'Price' : price, 'Quantity' : quantity})
+    
+    def sort(self):
         self.order.sort(key = lambda x: x['Price'], reverse = self.is_bid)
 
+    def push(self, price, quantity):
+        for i in range(len(self.order)):
+            if self.order[i]['Price'] == price:
+                self.order[i]['Quantity'] += quantity
+                return
+        self.order.append({'Price' : price, 'Quantity' : quantity})
+        self.sort()
+    
     def pop(self):
         if self.is_empty():
             return None
@@ -20,6 +27,7 @@ class Stack:
         if self.is_empty():
             return None
         return self.order[0]
+    
     def size(self):
         return len(self.order)
     

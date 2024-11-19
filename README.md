@@ -56,3 +56,33 @@ Start agents from custom built images.
 make start_orderbook
 make start_traderpool
 ```
+
+ ## Kafka
+
+ ### Topic
+
+Orderbook
+Order
+
+### Schema
+
+Order :
+```
+{
+  "order_id": { "type": "integer", "description": "Unique identifier for the order" },
+  "order_type": { "type": "string", "enum": ["buy", "sell"], "description": "Type of order" },
+  "price": { "type": "number", "description": "Price of the order" },
+  "quantity": { "type": "integer", "minimum": 1, "description": "Quantity of the asset" }
+}
+```
+Orderbook :
+```
+{
+  "bids": [
+    { "price": { "type": "number" }, "quantity": { "type": "integer" } }
+  ],
+  "asks": [
+    { "price": { "type": "number" }, "quantity": { "type": "integer" } }
+  ]
+}
+```
