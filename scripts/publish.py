@@ -3,6 +3,7 @@
 from confluent_kafka import Producer,Consumer
 from datetime import datetime, timezone
 import threading
+import random
 import time
 import sys
 import os
@@ -16,26 +17,26 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "../src"))
 
 from orderbook.OrderBook import OrderBook
 from orderbook.Stack import Stack
-from orderbook.Order import OrderBuy, OrderSell
+from orderbook.Order import Order
 # defined in topics_config.yaml. if changed, need to rebuild the image.
 
-TOPIC = "orderbook"
+TOPIC = "orders.topic"
 
-def produce_orderbook(producer: Producer, orderbook: OrderBook):
-    msg = {
-        "bid": orderbook.get_bid().to_dict(),
-        "ask": orderbook.get_ask().to_dict(),
-    }
+# def produce_orderbook(producer: Producer, orderbook: OrderBook):
+#     msg = {
+#         "bid": orderbook.get_bid().to_dict(),
+#         "ask": orderbook.get_ask().to_dict(),
+#     }
 
-    producer.produce(TOPIC, bytes(json.dumps(msg), "utf-8"))
-    producer.flush()
-    print(f"Message produced to topic '{TOPIC}': {msg}")
+#     producer.produce(TOPIC, bytes(json.dumps(msg), "utf-8"))
+#     producer.flush()
+#     print(f"Message produced to topic '{TOPIC}': {msg}")
 
 
-def produce_buy_order(producer: Producer, order: OrderBuy):
+def produce_order(producer: Producer, order: Order):
     msg = {
         "order_id": order.get_order_id(),
-        "order_type": "BUY",
+        "order_type": order.get_order_type(),
         "price":  order.get_price(),
         "quantity": order.get_quantity(),
         "time": int(datetime.now(timezone.utc).timestamp() * 1000000000),  # nanosecond
@@ -45,38 +46,40 @@ def produce_buy_order(producer: Producer, order: OrderBuy):
     producer.flush()
     print(f"Message produced to topic '{TOPIC}': {msg}")
 
-def produce_sell_order(producer: Producer, order: OrderSell):
-    msg = {
-        "order_id": order.get_order_id(),
-        "order_type": "BUY",
-        "price": order.get_price(),
-        "quantity": order.get_quantity(),
-        "time": int(datetime.now(timezone.utc).timestamp() * 1000000000),  # nanosecond
-    }
+def consume_messages(orderbook: OrderBook):
 
-    producer.produce(TOPIC, bytes(json.dumps(msg), "utf-8"))
-    producer.flush()
-    print(f"Message produced to topic '{TOPIC}': {msg}")
-
-
-def consume_messages():
-    # Initialize Kafka Consumer
     consumer = Consumer(kafka_consumer_config)
-
-    # Subscribe to the topic
     consumer.subscribe([TOPIC])
+    print("TOPIC")
 
-    print(f"Consumer subscribed to topic: {TOPIC}")
+    try:
+        while True:
+            msg = consumer.poll(timeout=1.0)
+            if msg is None:
+                continue
+            if msg.error():
+                print(msg.error())
+                continue
+
+            value = json.loads(msg.value().decode('utf-8'))
+
+            order_id = value["order_id"]
+            order_type = value["order_type"]
+            price = value["price"]
+            quantity = value["quantity"]
+
+            order = Order(order_id,price,quantity,order_type,)
+            orderbook.add_order(order)
+
+    except KeyboardInterrupt:
+        print("Consumer stopped.")
+    finally:
+        consumer.close()
 
 
 if __name__ == "__main__":
-    # init thread level
-    producer = Producer(kafka_config)
 
-    order_buy = OrderBuy(str(uuid.uuid4()), 48, 6)
-    produce_buy_order(producer, order_buy)
-    order_sell = OrderSell(str(uuid.uuid4()), 50, 4)
-    produce_sell_order(producer, order_sell)
+    producer = Producer(kafka_config)
 
     bid = Stack()
     ask = Stack(False)
@@ -87,5 +90,14 @@ if __name__ == "__main__":
     bid.size()
     ask.size()
     orderbook = OrderBook(bid,ask)
-    produce_orderbook(producer, orderbook)
-    consume_messages()
+
+    for _ in range(10):
+        order_id = str(uuid.uuid4())
+        price = random.randint(40, 60)
+        quantity = random.randint(1, 10)
+        order_type = random.choice(["Buy", "Sell"])
+        order = Order(order_id, price, quantity, order_type)
+        produce_order(producer, order)
+
+    consumer = Consumer(kafka_consumer_config)
+    consume_messages(orderbook)
