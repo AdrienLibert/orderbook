@@ -28,7 +28,7 @@ def produce_buy_order(producer: Producer):
 
 
 if __name__ == "__main__":
-    # init thread level
+    # init thread level/test
     producer = Producer(kafka_config)
 
     produce_buy_order(producer)
