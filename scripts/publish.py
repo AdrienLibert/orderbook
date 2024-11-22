@@ -7,6 +7,7 @@ from drgn.kafka import kafka_config
 
 import uuid
 import json
+import time
 
 
 # defined in topics_config.yaml. if changed, need to rebuild the image.
@@ -25,9 +26,23 @@ def produce_buy_order(producer: Producer):
     producer.produce(TOPIC, bytes(json.dumps(msg), "utf-8"))
     producer.flush()
 
+def produce_sell_order(producer: Producer):
+    msg = {
+        "order_id": str(uuid.uuid4()),
+        "order_type": "sell",
+        "price": 50,
+        "quantity": 50,
+        "time": int(datetime.now(timezone.utc).timestamp() * 1000000000),  # nanosecond
+    }
+
+    producer.produce(TOPIC, bytes(json.dumps(msg), "utf-8"))
+    producer.flush()
+
 
 if __name__ == "__main__":
     # init thread level
     producer = Producer(kafka_config)
 
     produce_buy_order(producer)
+    time.sleep(1)
+    produce_sell_order(producer)

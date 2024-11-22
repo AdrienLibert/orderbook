@@ -4,7 +4,7 @@ kind: Deployment
 metadata:
   labels:
     app: traderpool
-  name: traderpool-deployment
+  name: traderpool-pod
   namespace: orderbook
 spec:
   replicas: 1
@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
       - name: traderpool
-        image: local/traderpool
+        image: local/traderpool:latest
         imagePullPolicy: IfNotPresent
         env:
         - name: OB__KAFKA__TOPICS_CONFIG
