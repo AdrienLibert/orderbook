@@ -30,6 +30,7 @@ forward_kafka:
 
 stop_kafka:
 	helm uninstall bitnami -n orderbook
+	kubectl delete -f k8s/kafka_init/
 
 start_kafkainit:
 	kubectl apply -f k8s/kafka_init/

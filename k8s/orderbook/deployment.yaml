@@ -4,7 +4,7 @@ kind: Deployment
 metadata:
   labels:
     app: orderbook
-  name: orderbook-deployment
+  name: orderbook-pod
   namespace: orderbook
 spec:
   replicas: 1
@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
       - name: orderbook
-        image: local/orderbook
+        image: local/orderbook:latest
         imagePullPolicy: IfNotPresent
         env:
         - name: OB__KAFKA__TOPICS_CONFIG
