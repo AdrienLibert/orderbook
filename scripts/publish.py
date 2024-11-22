@@ -16,7 +16,7 @@ TOPIC = "orders.topic"
 def produce_buy_order(producer: Producer):
     msg = {
         "order_id": str(uuid.uuid4()),
-        "order_type": "BUY",
+        "order_type": "buy",
         "price": 50,
         "quantity": 50,
         "time": int(datetime.now(timezone.utc).timestamp() * 1000000000),  # nanosecond
