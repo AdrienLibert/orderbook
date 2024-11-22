@@ -1,11 +1,11 @@
 from Stack import Stack
-from Order import Order
+from order import Order
 
 class OrderBook:
     def __init__(self, bid, ask):
-        self.bid = bid  # Stack for bids
-        self.ask = ask  # Stack for asks
-
+        self.bid = bid
+        self.ask = ask
+        
     def get_bid(self):
         return self.bid
     

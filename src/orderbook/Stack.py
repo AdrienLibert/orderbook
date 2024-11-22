@@ -1,8 +1,7 @@
-# Stack class for bid and ask
 class Stack:
     def __init__(self,is_bid = True):
         self.order = []
-        self.is_bid = is_bid # True for bid, False for ask because bid is in descending order and ask is in ascending order
+        self.is_bid = is_bid
     def is_empty(self):
         return len(self.order) == 0
     
@@ -37,4 +36,4 @@ class Stack:
         }
     
     def __repr__(self):
-        return json.dumps(self.to_dict())  # Pour une conversion JSON automatique
+        return json.dumps(self.to_dict())

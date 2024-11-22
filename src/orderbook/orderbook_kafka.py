@@ -1,11 +1,9 @@
-from OrderBook import OrderBook
-from Stack import Stack
-from Order import Order
+from order import Order
 from drgn.kafka import kafka_config
 from drgn.env import config_from_env
 from confluent_kafka import Consumer, TopicPartition
 
-class OrderbookKafka:
+class OrderBookKafka:
     def __init__(self, topic: str, group_id: str):
         self.consumer = Consumer(
             kafka_config
@@ -36,7 +34,7 @@ class OrderbookKafka:
             print("Stopping consumer...")
         finally:
             self.consumer.close()
-            
+
     @staticmethod
     def parse_order(message: str):
     
@@ -47,12 +45,3 @@ class OrderbookKafka:
         except Exception as e:
             print(f"Failed to parse message: {message}. Error: {e}")
             return None
-        
-def main():
-    print("Running entrypoint of orderbook")
-    config_from_env()
-    bid_stack = Stack()
-    ask_stack = Stack()
-    orderbook = OrderBook(bid_stack, ask_stack)
-    kafka_orderbook = OrderbookKafka(topic="orders.topic", group_id="orderbook")
-    kafka_orderbook.listen_to_kafka(orderbook)
