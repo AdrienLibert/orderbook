@@ -6,4 +6,5 @@ if __name__ == "__main__":
     config_from_env()
 
     from main import main
+
     main()

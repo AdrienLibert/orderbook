@@ -2,6 +2,7 @@ import json
 from confluent_kafka import Consumer, TopicPartition
 from drgn.kafka import kafka_config
 
+
 class Stack:
     def __init__(self, is_bid=True):
         self._list = []
@@ -39,13 +40,14 @@ class Stack:
     def __repr__(self):
         return json.dumps(self.to_dict())
 
+
 class OrderbookKafka:
     def __init__(self, topic: str, group_id: str):
         self.consumer = Consumer(
             kafka_config
             | {
                 "group.id": group_id,
-                "auto.offset.reset": "latest",
+                "auto.offset.reset": "earliest",
                 "on_commit": lambda err, topics: print(err, topics),
             }
         )
@@ -58,7 +60,7 @@ class OrderbookKafka:
             while True:
                 print("Polling Kafka...")
                 msg = self.consumer.poll(1.0)
-                
+
                 if msg is None:
                     continue
                 if msg.error():
@@ -73,7 +75,7 @@ class OrderbookKafka:
             print("Stopping consumer...")
         finally:
             self.consumer.close()
-            
+
     @staticmethod
     def parse_order(message: str):
         try:
@@ -121,7 +123,7 @@ class OrderBook:
             best_ask = self.ask.peek()
             min_trade_quantity = min(order["quantity"], best_ask["quantity"])
             print(f"Trade: Buy {min_trade_quantity} @ {best_ask['price']}")
-           
+
             order["quantity"] -= min_trade_quantity
             best_ask["quantity"] -= min_trade_quantity
             if best_ask["quantity"] == 0:
