@@ -1,0 +1,109 @@
+import json
+from drgn.kafka import KafkaClient
+
+
+class Stack(list):
+    def __init__(self, is_bid=True):
+        self.is_bid = is_bid
+
+    def _sort(self):
+        self.sort(key=lambda x: x["price"], reverse=self.is_bid)
+
+    def push(self, order: dict):
+        self.append(order)
+        self._sort()
+
+    def peek(self):
+        if not self:
+            return None
+        return self[0]
+
+    def size(self):
+        return len(self)
+
+    def __str__(self):
+        return str(self)
+
+
+class OrderBookError(Exception):
+    pass
+
+
+class SimpleOrderBook:
+    def __init__(self, bid: Stack, ask: Stack, kafka_client: KafkaClient):
+        self.bid = bid
+        self.ask = ask
+        self.kafka_client = kafka_client
+
+        self._QUOTES_TOPIC = "orders.topic"
+        self._ORDER_STATUS_TOPIC = "order.status.topic"
+        self._PRICE_TOPIC = "order.last_price.topic"
+
+    def match(self, order: dict):
+        if order["order_type"] == "buy":
+            self._match_buy(order)
+        elif order["order_type"] == "sell":
+            self._match_sell(order)
+        else:
+            raise ValueError("Invalid order type")
+
+    def _match_buy(self, order: dict):
+        while (
+            order["quantity"] > 0
+            and not self.ask
+            and order["price"] >= self.ask.peek()["price"]  # type: ignore
+        ):
+            best_ask = self.ask.peek()
+            if best_ask:
+                min_trade_quantity = min(order["quantity"], best_ask["quantity"])
+                print(f"trade: Buy {min_trade_quantity} @ {best_ask['price']}")
+                order["quantity"] -= min_trade_quantity
+                best_ask["quantity"] -= min_trade_quantity
+                if best_ask["quantity"] == 0:
+                    self.ask.pop()
+        if order["quantity"] > 0:
+            self.bid.push(order)
+
+    def _match_sell(self, order: dict):
+        while (
+            order["quantity"] > 0
+            and not self.bid
+            and order["price"] <= self.bid.peek()["price"]  # type: ignore
+        ):
+            best_bid = self.bid.peek()
+            if best_bid:
+                min_trade_quantity = min(order["quantity"], best_bid["quantity"])
+                print(f"trade: Sell {min_trade_quantity} @ {best_bid['price']}")
+                order["quantity"] -= min_trade_quantity
+                best_bid["quantity"] -= min_trade_quantity
+                if best_bid["quantity"] == 0:
+                    self.bid.pop()
+        if order["quantity"] > 0:
+            self.ask.push(order)
+
+    def publish_trade(self, order: dict):
+        order_id = order["order_id"]
+        if order["quantity"] == 0:
+            status = "closed"
+        else:
+            status = "partial"
+        self.kafka_client.produce(
+            self._ORDER_STATUS_TOPIC,
+            json.dumps({"order_id": order_id, "status": status}),
+        )
+        print(f"{self._ORDER_STATUS_TOPIC}: {order_id} traded -> '{status}'")
+
+    def publish_price(self, mid_price: float):
+        message = json.dumps({"mid_price": mid_price})
+        self.kafka_client.produce(self._PRICE_TOPIC, message)
+        print(f"{self._PRICE_TOPIC}: last price '{mid_price}'")
+
+    def start(self):
+        for msgs in self.kafka_client.consume(self._QUOTES_TOPIC):
+            for order in msgs:
+                self.match(order)
+                self.publish_price(order["price"])
+                self.publish_trade(order)
+
+    def __str__(self):
+        return f"OrderBook(Bid: {self.bid}, Ask: {self.ask})"

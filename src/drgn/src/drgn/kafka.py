@@ -2,6 +2,7 @@ import json
 from confluent_kafka import Producer, Consumer, TopicPartition, KafkaError
 
 from drgn.config import env_config
+from typing import Generator
 
 kafka_config = {
     "bootstrap.servers": env_config["kafka"]["bootstrap_servers"],
@@ -35,7 +36,7 @@ class KafkaClient:
     def _get_topic_partition(self, topic: str):
         return TopicPartition(topic, 0, 0)
 
-    def consume(self, topic):
+    def consume(self, topic: str) -> Generator[list[dict], None, None]:
         self._consumer_config["auto.offset.reset"] = env_config["consumer"][
             "offset_reset"
         ]
@@ -59,3 +60,7 @@ class KafkaClient:
 
                 yield messages
                 self.consumer.commit()
+
+    def produce(self, topic: str, message: bytes):
+        self.producer.produce(topic, message)
+        self.producer.flush()
