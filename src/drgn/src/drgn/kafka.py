@@ -17,7 +17,8 @@ class KafkaClient:
             "on_commit": lambda err, topics: print(err, topics),
             "enable.partition.eof": True,
         }
-        self._producer_config = {}
+        self._producer_config = kafka_config
+        print(self._producer_config)
         self._consumer = None
         self._producer = None
 
@@ -40,7 +41,7 @@ class KafkaClient:
         self._consumer_config["auto.offset.reset"] = env_config["consumer"][
             "offset_reset"
         ]
-        self.consumer.assign(self._get_topic_partition(topic))
+        self.consumer.assign([self._get_topic_partition(topic)])
         consume_size = int(env_config["consumer"]["consume_size"])
         consume_timeout = float(env_config["consumer"]["consume_timeout"])
 
@@ -54,8 +55,8 @@ class KafkaClient:
                     if msg.error():
                         if msg.error().code() == KafkaError._PARTITION_EOF:
                             continue
-                    else:
-                        print(f"ERROR - KafkaException - {msg.error()}")
+                        else:
+                            print(f"ERROR - KafkaException - {msg.error()}")
                     messages.append(json.loads(msg.value().decode("utf-8")))
 
                 yield messages

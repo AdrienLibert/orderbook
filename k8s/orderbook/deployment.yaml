@@ -29,9 +29,9 @@ spec:
           value: PLAINTEXT
         - name: OB__CONSUMER__OFFSET_RESET
           value: earliest
-        - name: OB__CONSUMER__CONSUMER_SIZE
+        - name: OB__CONSUMER__CONSUME_SIZE
           value: "32"
-        - name: OB__CONSUMER__CONSUMER_TIMEOUT
+        - name: OB__CONSUMER__CONSUME_TIMEOUT
           value: "0.5"
         - name: CONFIG_PATH
           value: /app/task.conf

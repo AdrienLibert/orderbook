@@ -50,7 +50,7 @@ class SimpleOrderBook:
     def _match_buy(self, order: dict):
         while (
             order["quantity"] > 0
-            and not self.ask
+            and self.ask
             and order["price"] >= self.ask.peek()["price"]  # type: ignore
         ):
             best_ask = self.ask.peek()
@@ -67,7 +67,7 @@ class SimpleOrderBook:
     def _match_sell(self, order: dict):
         while (
             order["quantity"] > 0
-            and not self.bid
+            and self.bid
             and order["price"] <= self.bid.peek()["price"]  # type: ignore
         ):
             best_bid = self.bid.peek()
@@ -89,12 +89,12 @@ class SimpleOrderBook:
             status = "partial"
         self.kafka_client.produce(
             self._ORDER_STATUS_TOPIC,
-            json.dumps({"order_id": order_id, "status": status}),
+            bytes(json.dumps({"order_id": order_id, "status": status}), "utf-8"),
         )
         print(f"{self._ORDER_STATUS_TOPIC}: {order_id} traded -> '{status}'")
 
     def publish_price(self, mid_price: float):
-        message = json.dumps({"mid_price": mid_price})
+        message = bytes(json.dumps({"mid_price": mid_price}), "utf-8")
         self.kafka_client.produce(self._PRICE_TOPIC, message)
         print(f"{self._PRICE_TOPIC}: last price '{mid_price}'")
 
@@ -106,4 +106,4 @@ class SimpleOrderBook:
                 self.publish_trade(order)
 
     def __str__(self):
-        return f"OrderBook(Bid: {self.bid}, Ask: {self.ask})"
+        return f"OrderBook(bid: {self.bid}, ask: {self.ask})"
