@@ -1,5 +1,5 @@
 import json
-from confluent_kafka import Consumer, TopicPartition
+from confluent_kafka import Consumer, TopicPartition, Producer
 from drgn.kafka import kafka_config
 
 
@@ -16,7 +16,7 @@ class Stack:
 
     def push(self, price, quantity):
         self._list.append({"price": price, "quantity": quantity})
-        self._list.sort()
+        self.sort()
 
     def pop(self):
         if self.is_empty():
@@ -40,50 +40,43 @@ class Stack:
     def __repr__(self):
         return json.dumps(self.to_dict())
 
+class OrderBookError(Exception):
+    pass
 
-class OrderbookKafka:
-    def __init__(self, topic: str, group_id: str):
-        self.consumer = Consumer(
-            kafka_config
-            | {
-                "group.id": group_id,
-                "auto.offset.reset": "earliest",
-                "on_commit": lambda err, topics: print(err, topics),
-            }
-        )
+class MidPriceProducer:
+    def __init__(self, topic: str):
+        self.producer = Producer(kafka_config)
         self.topic = topic
-        self.consumer.assign([TopicPartition(topic, 0, 0)])
 
-    def listen_to_kafka(self, orderbook):
-        print(f"Listening to Kafka topic '{self.topic}'...")
-        try:
-            while True:
-                print("Polling Kafka...")
-                msg = self.consumer.poll(1.0)
+    def produce_mid_price(self, bid_price, ask_price):
+        if not bid_price:
+            mid_price = ask_price
+        elif not ask_price:
+            mid_price = bid_price 
+        else:
+            mid_price = (bid_price + ask_price) / 2
+        message = json.dumps({"mid_price": mid_price})
+        self.producer.produce(self.topic, message)
+        self.producer.flush()
+        print(f"Produced mid_price: {mid_price} to topic {self.topic}")
 
-                if msg is None:
-                    continue
-                if msg.error():
-                    print(f"Consumer error: {msg.error()}")
-                    continue
-                else:
-                    order = self.parse_order(msg.value().decode("utf-8"))
-                    if order:
-                        orderbook.add_order(order)
-                self.consumer.commit()
-        except KeyboardInterrupt:
-            print("Stopping consumer...")
-        finally:
-            self.consumer.close()
+class OrderStatusNotifier:
+    def __init__(self, topic: str):
+        self.producer = Producer(kafka_config)
+        self.topic = topic
 
-    @staticmethod
-    def parse_order(message: str):
-        try:
-            return json.loads(message)
-        except Exception as e:
-            print(f"Failed to parse message: {message}. Error: {e}")
-            return None
+    def trade_quantity(self, order):
+        if order["quantity"] == 0:
+            self.notify_order_status(order["order_id"],"Sucessful")
+        else :
+            self.notify_order_status(order["order_id"],"Waiting")
 
+
+    def notify_order_status(self, order_id: str, status:str):
+        message = json.dumps({"order_id": order_id, "status": status})
+        self.producer.produce(self.topic, message)
+        self.producer.flush()
+        print(f"Produced order status: {status} for order {order_id} to topic {self.topic}")
 
 class OrderBook:
     def __init__(self, bid, ask):
@@ -103,6 +96,7 @@ class OrderBook:
         return self.ask.peek() if not self.ask.is_empty() else None
 
     def add_order(self, order):
+        print(order)
         if order["order_type"] == "buy":
             self.match_buy_order(order)
         elif order["order_type"] == "sell":
@@ -149,3 +143,48 @@ class OrderBook:
 
     def __str__(self):
         return f"Bid: {self.bid}, Ask: {self.ask}"
+    
+class OrderbookKafka:
+    def __init__(self, topic: str, group_id: str):
+        self.consumer = Consumer(
+            kafka_config
+            | {
+                "group.id": group_id,
+                "auto.offset.reset": "latest",
+                "on_commit": lambda err, topics: print(err, topics),
+            }
+        )
+        self.topic = topic
+        self.consumer.assign([TopicPartition(topic, 0, 0)])
+
+    def listen_to_kafka(self, orderbook: OrderBook, mid_price_producer: MidPriceProducer, status_notifier: OrderStatusNotifier):
+        print(f"Listening to Kafka topic '{self.topic}'...")
+        try:
+            while True:
+                print("Polling Kafka...")
+                msg = self.consumer.poll(1.0)
+                
+                if msg is None:
+                    continue
+                if msg.error():
+                    print(f"Consumer error: {msg.error()}")
+                    continue
+                else:
+                    order = self.parse_order(msg.value().decode("utf-8"))
+                    if order:
+                        orderbook.add_order(order)
+                        mid_price_producer.produce_mid_price(orderbook._get_best_bid(), orderbook._get_best_ask())
+                        status_notifier.trade_quantity(order)
+                self.consumer.commit()
+        except KeyboardInterrupt:
+            print("Stopping consumer...")
+        finally:
+            self.consumer.close()
+            
+    @staticmethod
+    def parse_order(message: str):
+        try:
+            return json.loads(message)
+        except Exception as e:
+            print(f"Failed to parse message: {message}. Error: {e}")
+            return None
