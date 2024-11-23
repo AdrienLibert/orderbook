@@ -29,7 +29,7 @@ class KafkaClient:
 
     @property
     def producer(self) -> Producer:
-        if not self._producer:
+        if not self._producer:  # lazy
             self._producer = Producer(self._producer_config)
         return self._producer
 
@@ -41,8 +41,8 @@ class KafkaClient:
             "offset_reset"
         ]
         self.consumer.assign(self._get_topic_partition(topic))
-        consume_size = env_config["consumer"]["consume_size"]
-        consume_timeout = env_config["consumer"]["consume_timeout"]
+        consume_size = int(env_config["consumer"]["consume_size"])
+        consume_timeout = float(env_config["consumer"]["consume_timeout"])
 
         messages = []
         while True:

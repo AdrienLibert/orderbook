@@ -27,6 +27,12 @@ spec:
           value: bitnami-kafka:9092
         - name: OB__KAFKA__SECURITY_PROTOCOL
           value: PLAINTEXT
+        - name: OB__CONSUMER__OFFSET_RESET
+          value: earliest
+        - name: OB__CONSUMER__CONSUMER_SIZE
+          value: "32"
+        - name: OB__CONSUMER__CONSUMER_TIMEOUT
+          value: "0.5"
         - name: CONFIG_PATH
           value: /app/task.conf
         - name: PYTHONUNBUFFERED
