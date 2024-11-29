@@ -26,6 +26,7 @@ def produce_buy_order(producer: Producer):
     producer.produce(TOPIC, bytes(json.dumps(msg), "utf-8"))
     producer.flush()
 
+
 def produce_sell_order(producer: Producer):
     msg = {
         "order_id": str(uuid.uuid4()),
