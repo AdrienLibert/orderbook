@@ -8,6 +8,7 @@ from drgn.kafka import kafka_config
 import uuid
 import json
 import time
+import random
 
 
 # defined in topics_config.yaml. if changed, need to rebuild the image.
@@ -17,9 +18,8 @@ TOPIC = "orders.topic"
 def produce_buy_order(producer: Producer):
     msg = {
         "order_id": str(uuid.uuid4()),
-        "order_type": "buy",
-        "price": 50,
-        "quantity": 50,
+        "price": random.randint(45, 55),
+        "quantity": random.randint(1, 50),
         "time": int(datetime.now(timezone.utc).timestamp() * 1000000000),  # nanosecond
     }
 
@@ -30,9 +30,8 @@ def produce_buy_order(producer: Producer):
 def produce_sell_order(producer: Producer):
     msg = {
         "order_id": str(uuid.uuid4()),
-        "order_type": "sell",
-        "price": 50,
-        "quantity": 50,
+        "price": -random.randint(45, 55),
+        "quantity": random.randint(1, 50),
         "time": int(datetime.now(timezone.utc).timestamp() * 1000000000),  # nanosecond
     }
 
