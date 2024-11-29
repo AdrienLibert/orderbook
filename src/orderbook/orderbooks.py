@@ -1,5 +1,6 @@
 import json
 from drgn.kafka import KafkaClient
+import threading
 
 
 class Stack(list):
@@ -33,6 +34,7 @@ class SimpleOrderBook:
     def __init__(self, bid: Stack, ask: Stack, kafka_client: KafkaClient):
         self.bid = bid
         self.ask = ask
+        self.lock = threading.Lock()
         self.kafka_client = kafka_client
 
         self._QUOTES_TOPIC = "orders.topic"
@@ -44,20 +46,21 @@ class SimpleOrderBook:
         Executes trades by matching buy orders with the lowest-priced ask
         and sell orders with the highest-priced bid.
         """
-        is_buy = order["price"] > 0
-        book, opposite_book = (self.ask, self.bid) if is_buy else (self.bid, self.ask)
-        comparator = lambda p, q: p >= q if is_buy else abs(p) <= q
-        action = "Buy" if is_buy else "Sell"
-        while order["quantity"] > 0 and book and comparator(order["price"], book.peek()["price"]):
-            best_order = book.peek()
-            trade_quantity = min(order["quantity"], best_order["quantity"])
-            print(f"trade: {action} {trade_quantity} @ {best_order['price']}")
-            order["quantity"] -= trade_quantity
-            best_order["quantity"] -= trade_quantity
-            if best_order["quantity"] == 0:
-                book.pop()
-        if order["quantity"] > 0:
-            opposite_book.push(order)
+        with self.lock:
+            is_buy = order["price"] > 0
+            book, opposite_book = (self.ask, self.bid) if is_buy else (self.bid, self.ask)
+            comparator = lambda p, q: p >= q if is_buy else abs(p) <= q
+            action = "Buy" if is_buy else "Sell"
+            while order["quantity"] > 0 and book and comparator(order["price"], book.peek()["price"]):
+                best_order = book.peek()
+                trade_quantity = min(order["quantity"], best_order["quantity"])
+                print(f"trade: {action} {trade_quantity} @ {best_order['price']}")
+                order["quantity"] -= trade_quantity
+                best_order["quantity"] -= trade_quantity
+                if best_order["quantity"] == 0:
+                    book.pop()
+            if order["quantity"] > 0:
+                opposite_book.push(order)
 
     def publish_trade(self, order: dict):
         order_id = order["order_id"]
