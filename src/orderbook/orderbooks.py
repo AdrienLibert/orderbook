@@ -39,39 +39,25 @@ class SimpleOrderBook:
         self._ORDER_STATUS_TOPIC = "order.status.topic"
         self._PRICE_TOPIC = "order.last_price.topic"
 
-    def match(self, order: dict): #The match function executes trades by matching buy orders with the lowest-priced ask and sell orders with the highest-priced bid
-        if order["price"] > 0:
-            while (
-                order["quantity"] > 0
-                and self.ask
-                and order["price"] >= self.ask.peek()["price"]
-            ):
-                best_ask = self.ask.peek()
-                if best_ask:
-                    min_trade_quantity = min(order["quantity"], best_ask["quantity"])
-                    print(f"trade: Buy {min_trade_quantity} @ {best_ask['price']}")
-                    order["quantity"] -= min_trade_quantity
-                    best_ask["quantity"] -= min_trade_quantity
-                    if best_ask["quantity"] == 0:
-                        self.ask.pop()
-            if order["quantity"] > 0:
-                self.bid.push(order)
-        elif order["price"] < 0:
-            while (
-                order["quantity"] > 0
-                and self.bid
-                and abs(order["price"]) <= self.bid.peek()["price"]
-            ):
-                best_bid = self.bid.peek()
-                if best_bid:
-                    min_trade_quantity = min(order["quantity"], best_bid["quantity"])
-                    print(f"trade: Sell {min_trade_quantity} @ {best_bid['price']}")
-                    order["quantity"] -= min_trade_quantity
-                    best_bid["quantity"] -= min_trade_quantity
-                    if best_bid["quantity"] == 0:
-                        self.bid.pop()
-            if order["quantity"] > 0:
-                self.ask.push(order)
+    def match(self, order: dict):
+        """
+        Executes trades by matching buy orders with the lowest-priced ask
+        and sell orders with the highest-priced bid.
+        """
+        is_buy = order["price"] > 0
+        book, opposite_book = (self.ask, self.bid) if is_buy else (self.bid, self.ask)
+        comparator = lambda p, q: p >= q if is_buy else abs(p) <= q
+        action = "Buy" if is_buy else "Sell"
+        while order["quantity"] > 0 and book and comparator(order["price"], book.peek()["price"]):
+            best_order = book.peek()
+            trade_quantity = min(order["quantity"], best_order["quantity"])
+            print(f"trade: {action} {trade_quantity} @ {best_order['price']}")
+            order["quantity"] -= trade_quantity
+            best_order["quantity"] -= trade_quantity
+            if best_order["quantity"] == 0:
+                book.pop()
+        if order["quantity"] > 0:
+            opposite_book.push(order)
 
     def publish_trade(self, order: dict):
         order_id = order["order_id"]

@@ -18,7 +18,8 @@ TOPIC = "orders.topic"
 def produce_buy_order(producer: Producer):
     msg = {
         "order_id": str(uuid.uuid4()),
-        "price": random.randint(45, 55),
+        "order_type": "limit",
+        "price": random.randint(45, 60),
         "quantity": random.randint(1, 50),
         "time": int(datetime.now(timezone.utc).timestamp() * 1000000000),  # nanosecond
     }
@@ -30,7 +31,8 @@ def produce_buy_order(producer: Producer):
 def produce_sell_order(producer: Producer):
     msg = {
         "order_id": str(uuid.uuid4()),
-        "price": -random.randint(45, 55),
+        "order_type": "limit",
+        "price": -random.randint(45, 60),
         "quantity": random.randint(1, 50),
         "time": int(datetime.now(timezone.utc).timestamp() * 1000000000),  # nanosecond
     }
