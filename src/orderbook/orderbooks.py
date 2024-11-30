@@ -67,7 +67,7 @@ class SimpleOrderBook:
                 opposite_book.push(order)
             self.publish_price()
 
-    def publish_trade(self, left_order_id, right_order_id, quantity, price, action):
+    def publish_trade(self, left_order_id : str, right_order_id : str, quantity : int, price : int, action : str):
         status = "closed" if quantity == 0 else "partial"
         self.kafka_client.produce(
             self._ORDER_STATUS_TOPIC,
