@@ -46,33 +46,54 @@ class SimpleOrderBook:
         Executes trades by matching buy orders with the lowest-priced ask
         and sell orders with the highest-priced bid.
         """
-        with self.lock:
-            is_buy = order["price"] > 0
-            book, opposite_book = (self.ask, self.bid) if is_buy else (self.bid, self.ask)
-            comparator = lambda p, q: p >= q if is_buy else abs(p) <= q
-            action = "Buy" if is_buy else "Sell"
-            while order["quantity"] > 0 and book and comparator(order["price"], book.peek()["price"]):
+        book, opposite_book, action = (self.ask, self.bid, "Buy") if order["quantity"] > 0 else (self.bid, self.ask, "Sell")
+        comparator = lambda p, q: p >= q if order["quantity"] > 0 else p <= q
+        while abs(order["quantity"]) > 0 and book and comparator(order["price"], book.peek()["price"]):
+            with self.lock:
                 best_order = book.peek()
-                trade_quantity = min(order["quantity"], best_order["quantity"])
-                print(f"trade: {action} {trade_quantity} @ {best_order['price']}")
-                order["quantity"] -= trade_quantity
+                trade_quantity = min(abs(order["quantity"]), best_order["quantity"])
+                left_order_id = order["order_id"]
+                right_order_id = best_order["order_id"]
+                print(f"trade: {action} {trade_quantity} @ {best_order["price"]}")
+                if order["quantity"] > 0:
+                    order["quantity"] -= trade_quantity
+                else:
+                    order["quantity"] += trade_quantity 
                 best_order["quantity"] -= trade_quantity
+                self.publish_trade(
+                    {
+                "left_order_id": left_order_id,
+                "right_order_id": right_order_id,
+                "quantity": trade_quantity,
+                "price": best_order["price"],
+                "action": action,
+                    }
+                )
                 if best_order["quantity"] == 0:
                     book.pop()
-            if order["quantity"] > 0:
+            if abs(order["quantity"]) > 0:
                 opposite_book.push(order)
 
-    def publish_trade(self, order: dict):
-        order_id = order["order_id"]
-        if order["quantity"] == 0:
-            status = "closed"
-        else:
-            status = "partial"
+    def publish_trade(self, trade: dict):
+        status = "closed" if trade["quantity"] == 0 else "partial"
         self.kafka_client.produce(
             self._ORDER_STATUS_TOPIC,
-            bytes(json.dumps({"order_id": order_id, "status": status}), "utf-8"),
+            bytes(json.dumps({
+                "left_order_id": trade["left_order_id"],
+                "right_order_id": trade["right_order_id"],
+                "quantity": trade["quantity"],
+                "price": trade["price"],
+                "action": trade["action"],
+                "status": status,
+            }), "utf-8"),
         )
-        print(f"{self._ORDER_STATUS_TOPIC}: {order_id} traded -> '{status}'")
+        print(f"{self._ORDER_STATUS_TOPIC}: "
+          f"Left Order ID: {trade['left_order_id']} "
+          f"Right Order ID: {trade['right_order_id']} "
+          f"Quantity: {trade['quantity']} "
+          f"@ {trade['price']} "
+          f"Action: {trade['action']} "
+          f"Status: {status}")
 
     def publish_price(self, mid_price: float):
         message = bytes(json.dumps({"mid_price": mid_price}), "utf-8")
