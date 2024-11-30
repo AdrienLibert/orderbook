@@ -60,40 +60,32 @@ class SimpleOrderBook:
                 else:
                     order["quantity"] += trade_quantity 
                 right_order["quantity"] -= trade_quantity
-                self.publish_trade(
-                    {
-                "left_order_id": order["order_id"],
-                "right_order_id": right_order["order_id"],
-                "quantity": trade_quantity,
-                "price": right_order["price"],
-                "action": action,
-                    }
-                )
+                self.publish_trade(order["order_id"],right_order["order_id"],trade_quantity,right_order["price"],action)
                 if right_order["quantity"] == 0:
                     book.pop()
             if abs(order["quantity"]) > 0:
                 opposite_book.push(order)
             self.publish_price()
 
-    def publish_trade(self, trade: dict):
-        status = "closed" if trade["quantity"] == 0 else "partial"
+    def publish_trade(self, left_order_id, right_order_id, quantity, price, action):
+        status = "closed" if quantity == 0 else "partial"
         self.kafka_client.produce(
             self._ORDER_STATUS_TOPIC,
             bytes(json.dumps({
-                "left_order_id": trade["left_order_id"],
-                "right_order_id": trade["right_order_id"],
-                "quantity": trade["quantity"],
-                "price": trade["price"],
-                "action": trade["action"],
+                "left_order_id":left_order_id,
+                "right_order_id": right_order_id,
+                "quantity": quantity,
+                "price": price,
+                "action": action,
                 "status": status,
             }), "utf-8"),
         )
         print(f"{self._ORDER_STATUS_TOPIC}: "
-          f"Left Order ID: {trade['left_order_id']} "
-          f"Right Order ID: {trade['right_order_id']} "
-          f"Quantity: {trade['quantity']} "
-          f"@ {trade['price']} "
-          f"Action: {trade['action']} "
+          f"Left Order ID: {left_order_id} "
+          f"Right Order ID: {right_order_id} "
+          f"Quantity: {quantity} "
+          f"@ {price} "
+          f"Action: {action} "
           f"Status: {status}")
         
     def calculate_mid_price(self):
