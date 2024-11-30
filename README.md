@@ -25,16 +25,47 @@ The architecture choices are driven by:
 ### Message definitions
 
 Orders:
+```json
+{
+    "order_id": "<uuid>",       
+    "order_type": "limit",       
+    "price": <price>,           
+    "quantity": <quantity>,   
+    "time": <timestamp>       
+}
 ```
-```
+- **order_id**: A unique identifier for the order
+- **order_type**: The type of order being placed ("limit", "market")
+- **price**: The price at which the order is placed
+- **quantity**: The quantity of items. A positive value indicates a "buy" order, while a negative value indicates a "sell" order.
+- **time**: The timestamp when the order is created
 
 Trades:
+```json
+{
+    "left_order_id": "<order_id>",     
+    "right_order_id": "<order_id>",    
+    "quantity": <quantity>,         
+    "price": <price>,           
+    "action": "<action>", 
+    "status": "<status>"              
+}
 ```
-```
+- **left_order_id**: The ID of the order on the left side of the trade 
+- **right_order_id**: The ID of the order on the right side of the trade
+- **quantity**: The number of items traded between the two orders
+- **price**: The price at which the trade was executed
+- **action**: Specifies whether the trade was a "Buy" or "Sell" action
+- **status**: The status of the trade
 
 Prices:
+```json
+{
+    "mid_price": <mid_price>
+}
 ```
-```
+- **mid_price**: The most recent mid-price, which is typically the average of the highest bid and lowest ask price for an asset
+
 
 ## Sequence Diagram
 
