@@ -29,8 +29,10 @@ forward_kafka:
 	kubectl port-forward --namespace orderbook svc/bitnami-kafka 9092:9092
 
 stop_kafka:
-	helm uninstall bitnami -n orderbook
-	kubectl delete -f k8s/kafka_init/
+	helm uninstall --ignore-not-found bitnami -n orderbook
+	kubectl delete --ignore-not-found -f k8s/kafka_init/
+	kubectl delete --ignore-not-found pvc data-bitnami-kafka-controller-0 -n orderbookm
+
 
 start_kafkainit:
 	kubectl apply -f k8s/kafka_init/
