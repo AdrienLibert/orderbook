@@ -46,30 +46,30 @@ class SimpleOrderBook:
         Executes trades by matching buy orders with the lowest-priced ask
         and sell orders with the highest-priced bid.
         """
-        book, opposite_book, action = (self.ask, self.bid, "Buy") if order["quantity"] > 0 else (self.bid, self.ask, "Sell")
+        book, opposite_book, action,comparator = (self.ask, self.bid, "Buy") if order["quantity"] > 0 else (self.bid, self.ask, "Sell")
         comparator = lambda p, q: p >= q if order["quantity"] > 0 else p <= q
         while abs(order["quantity"]) > 0 and book and comparator(order["price"], book.peek()["price"]):
             with self.lock: #TODO: allocate specific thread for publish operations
-                best_order = book.peek()
-                trade_quantity = min(abs(order["quantity"]), best_order["quantity"])
-                left_order_id = order["order_id"]
-                right_order_id = best_order["order_id"]
-                print(f"trade: {action} {trade_quantity} @ {best_order["price"]}")
+                right_order = book.peek()
+                trade_quantity = min(abs(order["quantity"]), right_order["quantity"])
+                print(f"Executed trade: {action} {trade_quantity} @ {right_order["price"]} | "
+                    f"Left Order ID: {order["order_id"]}, Right Order ID: {right_order["order_id"]} | "
+                    f"Left Order Quantity: {order['quantity']}, Right Order Quantity: {right_order['quantity']}")
                 if order["quantity"] > 0:
                     order["quantity"] -= trade_quantity
                 else:
                     order["quantity"] += trade_quantity 
-                best_order["quantity"] -= trade_quantity
+                right_order["quantity"] -= trade_quantity
                 self.publish_trade(
                     {
-                "left_order_id": left_order_id,
-                "right_order_id": right_order_id,
+                "left_order_id": order["order_id"],
+                "right_order_id": right_order["order_id"],
                 "quantity": trade_quantity,
-                "price": best_order["price"],
+                "price": right_order["price"],
                 "action": action,
                     }
                 )
-                if best_order["quantity"] == 0:
+                if right_order["quantity"] == 0:
                     book.pop()
             if abs(order["quantity"]) > 0:
                 opposite_book.push(order)
