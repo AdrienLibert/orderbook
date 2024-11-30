@@ -49,7 +49,7 @@ class SimpleOrderBook:
         book, opposite_book, action = (self.ask, self.bid, "Buy") if order["quantity"] > 0 else (self.bid, self.ask, "Sell")
         comparator = lambda p, q: p >= q if order["quantity"] > 0 else p <= q
         while abs(order["quantity"]) > 0 and book and comparator(order["price"], book.peek()["price"]):
-            with self.lock:
+            with self.lock: #TODO: allocate specific thread for publish operations
                 best_order = book.peek()
                 trade_quantity = min(abs(order["quantity"]), best_order["quantity"])
                 left_order_id = order["order_id"]
@@ -73,6 +73,7 @@ class SimpleOrderBook:
                     book.pop()
             if abs(order["quantity"]) > 0:
                 opposite_book.push(order)
+            self.publish_price()
 
     def publish_trade(self, trade: dict):
         status = "closed" if trade["quantity"] == 0 else "partial"
@@ -94,18 +95,35 @@ class SimpleOrderBook:
           f"@ {trade['price']} "
           f"Action: {trade['action']} "
           f"Status: {status}")
+        
+    def calculate_mid_price(self):
+        """
+        Calculate the mid-price based on the best bid and best ask prices.
+        """
+        best_bid = self.bid.peek()["price"]
+        best_ask = self.ask.peek()["price"]
+        if best_bid is not None and best_ask is not None:
+            return (best_bid + best_ask) / 2
+        elif best_bid is not None:
+            return best_bid
+        elif best_ask is not None:
+            return best_ask
+        else:
+            return None
 
-    def publish_price(self, mid_price: float):
-        message = bytes(json.dumps({"mid_price": mid_price}), "utf-8")
-        self.kafka_client.produce(self._PRICE_TOPIC, message)
-        print(f"{self._PRICE_TOPIC}: last price '{mid_price}'")
+    def publish_price(self):
+        mid_price = self.calculate_mid_price()
+        if mid_price is not None:
+            message = bytes(json.dumps({"mid_price": mid_price}), "utf-8")
+            self.kafka_client.produce(self._PRICE_TOPIC, message)
+            print(f"{self._PRICE_TOPIC}: last price '{mid_price}'")
+        else:
+            print(f"{self._PRICE_TOPIC}: No valid mid-price to publish (order books are empty).")
 
     def start(self):
         for msgs in self.kafka_client.consume(self._QUOTES_TOPIC):
             for order in msgs:
                 self.match(order)
-                self.publish_price(order["price"])
-                self.publish_trade(order)
 
     def __str__(self):
         return f"OrderBook(bid: {self.bid}, ask: {self.ask})"
