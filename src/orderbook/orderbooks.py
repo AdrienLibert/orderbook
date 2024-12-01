@@ -42,30 +42,25 @@ class SimpleOrderBook:
         self._PRICE_TOPIC = "order.last_price.topic"
 
     def match(self, order: dict):
-        """
-        Executes trades by matching buy orders with the lowest-priced ask
-        and sell orders with the highest-priced bid.
-        """
-        book, opposite_book, action,comparator = (self.ask, self.bid, "Buy") if order["quantity"] > 0 else (self.bid, self.ask, "Sell")
-        comparator = lambda p, q: p >= q if order["quantity"] > 0 else p <= q
-        while abs(order["quantity"]) > 0 and book and comparator(order["price"], book.peek()["price"]):
-            with self.lock: #TODO: allocate specific thread for publish operations
-                right_order = book.peek()
-                trade_quantity = min(abs(order["quantity"]), right_order["quantity"])
-                print(f"Executed trade: {action} {trade_quantity} @ {right_order["price"]} | "
-                    f"Left Order ID: {order["order_id"]}, Right Order ID: {right_order["order_id"]} | "
+        in_, out_, action, comparator, order["quantity"] = (
+            (self.bid, self.ask, "Buy", lambda x, y: x <= y, order["quantity"]) if order["quantity"] > 0
+            else (self.ask, self.bid, "Sell", lambda x, y: x >= y, -order["quantity"])
+            )
+        while order["quantity"] > 0 and out_ and comparator(order["price"], out_.peek()["price"]):
+            with self.lock:
+                right_order = out_.peek()
+                trade_quantity = min(order["quantity"], right_order["quantity"])
+                print(f"Executed trade: {action} {trade_quantity} @ {right_order['price']} | "
+                    f"Left Order ID: {order['order_id']}, Right Order ID: {right_order['order_id']} | "
                     f"Left Order Quantity: {order['quantity']}, Right Order Quantity: {right_order['quantity']}")
-                if order["quantity"] > 0:
-                    order["quantity"] -= trade_quantity
-                else:
-                    order["quantity"] += trade_quantity 
+                order["quantity"] -= trade_quantity
                 right_order["quantity"] -= trade_quantity
-                self.publish_trade(order["order_id"],right_order["order_id"],trade_quantity,right_order["price"],action)
+                self.publish_trade(order["order_id"], right_order["order_id"], trade_quantity, right_order["price"], action)
                 if right_order["quantity"] == 0:
-                    book.pop()
-            if abs(order["quantity"]) > 0:
-                opposite_book.push(order)
-            self.publish_price()
+                    out_.pop()
+            if order["quantity"] > 0:
+                in_.push(order)
+            self.publish_price(right_order["price"])
 
     def publish_trade(self, left_order_id : str, right_order_id : str, quantity : int, price : int, action : str):
         status = "closed" if quantity == 0 else "partial"
@@ -88,29 +83,10 @@ class SimpleOrderBook:
           f"Action: {action} "
           f"Status: {status}")
         
-    def calculate_mid_price(self):
-        """
-        Calculate the mid-price based on the best bid and best ask prices.
-        """
-        best_bid = self.bid.peek()["price"]
-        best_ask = self.ask.peek()["price"]
-        if best_bid is not None and best_ask is not None:
-            return (best_bid + best_ask) / 2
-        elif best_bid is not None:
-            return best_bid
-        elif best_ask is not None:
-            return best_ask
-        else:
-            return None
-
-    def publish_price(self):
-        mid_price = self.calculate_mid_price()
-        if mid_price is not None:
-            message = bytes(json.dumps({"mid_price": mid_price}), "utf-8")
-            self.kafka_client.produce(self._PRICE_TOPIC, message)
-            print(f"{self._PRICE_TOPIC}: last price '{mid_price}'")
-        else:
-            print(f"{self._PRICE_TOPIC}: No valid mid-price to publish (order books are empty).")
+    def publish_price(self,price):
+        message = bytes(json.dumps({"last quote price": price}), "utf-8")
+        self.kafka_client.produce(self._PRICE_TOPIC, message)
+        print(f"{self._PRICE_TOPIC}: last quote price '{price}'")
 
     def start(self):
         for msgs in self.kafka_client.consume(self._QUOTES_TOPIC):
