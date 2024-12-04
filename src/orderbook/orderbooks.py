@@ -47,20 +47,21 @@ class SimpleOrderBook:
             else (self.ask, self.bid, "Sell", lambda x, y: x >= y, -order["quantity"])
             )
         while order["quantity"] > 0 and out_ and comparator(order["price"], out_.peek()["price"]):
-            with self.lock:
-                right_order = out_.peek()
-                trade_quantity = min(order["quantity"], right_order["quantity"])
-                print(f"Executed trade: {action} {trade_quantity} @ {right_order['price']} | "
-                    f"Left Order ID: {order['order_id']}, Right Order ID: {right_order['order_id']} | "
-                    f"Left Order Quantity: {order['quantity']}, Right Order Quantity: {right_order['quantity']}")
-                order["quantity"] -= trade_quantity
-                right_order["quantity"] -= trade_quantity
-                self.publish_trade(order["order_id"], right_order["order_id"], trade_quantity, right_order["price"], action)
-                if right_order["quantity"] == 0:
-                    out_.pop()
-            if order["quantity"] > 0:
-                in_.push(order)
-            self.publish_price(right_order["price"])
+            #with self.lock:
+            right_order = out_.peek()
+            trade_quantity = min(order["quantity"], right_order["quantity"])
+            print(f"Executed trade: {action} {trade_quantity} @ {right_order['price']} | "
+                f"Left Order ID: {order['order_id']}, Right Order ID: {right_order['order_id']} | "
+                f"Left Order Quantity: {order['quantity']}, Right Order Quantity: {right_order['quantity']}")
+            order["quantity"] -= trade_quantity
+            right_order["quantity"] -= trade_quantity
+            self.publish_trade(order["order_id"], right_order["order_id"], trade_quantity, right_order["price"], action)
+            if right_order["quantity"] == 0:
+                out_.pop()
+            if order["quantity"] == 0 or right_order["quantity"] == 0:
+                self.publish_price(right_order["price"])
+        if order["quantity"] > 0:
+            in_.push(order)
 
     def publish_trade(self, left_order_id : str, right_order_id : str, quantity : int, price : int, action : str):
         status = "closed" if quantity == 0 else "partial"
