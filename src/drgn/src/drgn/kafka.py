@@ -38,29 +38,33 @@ class KafkaClient:
         return TopicPartition(topic, 0, 0)
 
     def consume(self, topic: str) -> Generator[list[dict], None, None]:
-        self._consumer_config["auto.offset.reset"] = env_config["consumer"][
-            "offset_reset"
-        ]
+        self._consumer_config["auto.offset.reset"] = "earliest"
+        self._consumer_config["enable.auto.commit"] = False
         self.consumer.assign([self._get_topic_partition(topic)])
-        consume_size = int(env_config["consumer"]["consume_size"])
-        consume_timeout = float(env_config["consumer"]["consume_timeout"])
+        consume_size = int(env_config["consumer"].get("consume_size", 10))
+        consume_timeout = float(env_config["consumer"].get("consume_timeout", 1.0))
 
-        messages = []
         while True:
             msgs = self.consumer.consume(consume_size, timeout=consume_timeout)
-            msg_size = len(msgs)
+            if not msgs:
+                print("No messages received.")
+                continue
 
-            if msg_size > 0:
-                for msg in msgs:
-                    if msg.error():
-                        if msg.error().code() == KafkaError._PARTITION_EOF:
-                            continue
-                        else:
-                            print(f"ERROR - KafkaException - {msg.error()}")
+            messages = []
+            for msg in msgs:
+                if msg.error():
+                    if msg.error().code() == KafkaError._PARTITION_EOF:
+                        continue 
+                    else:
+                        print(f"ERROR - KafkaException - {msg.error()}")
+                else:
+                    print(f"Message received: {msg.value()}")
                     messages.append(json.loads(msg.value().decode("utf-8")))
 
+            if messages:
                 yield messages
                 self.consumer.commit()
+
 
     def produce(self, topic: str, message: bytes):
         self.producer.produce(topic, message)
