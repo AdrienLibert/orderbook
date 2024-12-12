@@ -23,7 +23,7 @@ class Stack(list):
         return len(self)
 
     def __str__(self):
-        return str(self)
+        return super().__str__()
 
 
 class OrderBookError(Exception):
@@ -46,6 +46,9 @@ class SimpleOrderBook:
             (self.bid, self.ask, "Buy", lambda x, y: x <= y, order["quantity"]) if order["quantity"] > 0
             else (self.ask, self.bid, "Sell", lambda x, y: x >= y, -order["quantity"])
             )
+        print(order["quantity"])
+        print(out_)
+        print(in_)
         while order["quantity"] > 0 and out_ and comparator(order["price"], out_.peek()["price"]):
             #with self.lock:
             right_order = out_.peek()

@@ -5,6 +5,7 @@ import json
 from datetime import datetime, timezone
 from drgn.kafka import KafkaClient
 import time
+
 class Trader:
     def __init__(self, eqlbm: float, limit_buy: float, limit_sell: float, aggressiveness_buy: float, aggressiveness_sell: float, theta: float, kafka_client: KafkaClient):
         self.eqlbm = eqlbm
@@ -58,7 +59,6 @@ class Trader:
         }
         self.kafka_client.produce(self._QUOTES_TOPIC, bytes(json.dumps(msg),"utf-8"))
 
-
     def produce_sell_order(self):
         msg = {
             "order_id": str(uuid.uuid4()),
@@ -70,16 +70,11 @@ class Trader:
         }
         self.kafka_client.produce(self._QUOTES_TOPIC, bytes(json.dumps(msg),"utf-8"))
 
-        for msgs in self.kafka_client.consume(self._QUOTES_TOPIC):
-            for order in msgs:
-                self.match(order)
-
 
     def consume_last_price(self):
         for msgs in self.kafka_client.consume(self._PRICE_TOPIC):
             for last_price in msgs:
-                data = json.loads(last_price.value().decode('utf-8'))
-                print(f"Received price update: {data}")
+                print(f"Received price update: {last_price}")
 
     def consume_trade(self):
         for msgs in self.kafka_client.consume(self._ORDER_STATUS_TOPIC):
@@ -100,8 +95,9 @@ class Trader:
                 print(f"  Status: {status}")
 
     def start(self):
+        self.update_target_prices()
         self.produce_buy_order()
         time.sleep(10)
         self.consume_last_price()
-        time.sleep(10)
-        self.consume_trade()
+        self.consume_trade()        
+        self.produce_sell_order()

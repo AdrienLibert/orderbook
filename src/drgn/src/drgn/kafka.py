@@ -41,8 +41,17 @@ class KafkaClient:
         self._consumer_config["auto.offset.reset"] = "earliest"
         self._consumer_config["enable.auto.commit"] = False
         self.consumer.assign([self._get_topic_partition(topic)])
-        consume_size = int(env_config["consumer"].get("consume_size", 10))
-        consume_timeout = float(env_config["consumer"].get("consume_timeout", 1.0))
+        
+        if isinstance(env_config, dict):
+                consumer_config = env_config.get('consumer', {})
+        else:
+            try:
+                consumer_config = dict(env_config['consumer']) if 'consumer' in env_config else {}
+            except Exception as e:
+                print(f"Error configuration: {e}")
+                consumer_config = {}
+        consume_size = int(consumer_config.get("consume_size", 10))
+        consume_timeout = float(consumer_config.get("consume_timeout", 1.0))
 
         while True:
             msgs = self.consumer.consume(consume_size, timeout=consume_timeout)
@@ -64,7 +73,6 @@ class KafkaClient:
             if messages:
                 yield messages
                 self.consumer.commit()
-
 
     def produce(self, topic: str, message: bytes):
         self.producer.produce(topic, message)
