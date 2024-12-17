@@ -10,6 +10,7 @@ import uuid
 # defined in topics_config.yaml. if changed, need to rebuild the image.
 TOPIC = "orders.topic"
 
+
 def commit(err: KafkaError, topics: list[TopicPartition]):
     if not err.fatal():
         return
@@ -19,7 +20,7 @@ def commit(err: KafkaError, topics: list[TopicPartition]):
     if topics:
         err_dict["topics"] = [topic.topic for topic in topics]
     print(f"ERROR - {err_dict}")
-    
+
 
 def consume_orders(consumer: Consumer):
     while True:
@@ -28,7 +29,7 @@ def consume_orders(consumer: Consumer):
         if len(msgs) > 0:
             for msg in msgs:
                 if msg.error():
-                    code = msg.error().code() 
+                    code = msg.error().code()
                     if code == KafkaError._PARTITION_EOF:
                         print(f"No more msgs")
                     else:

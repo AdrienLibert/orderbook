@@ -13,6 +13,7 @@ import random
 # defined in topics_config.yaml. if changed, need to rebuild the image.
 TOPIC = "orders.topic"
 
+
 def delivery(err, msg):
     print(msg, err)
 
@@ -26,7 +27,7 @@ def produce_buy_order(producer: Producer):
         "time": int(datetime.now(timezone.utc).timestamp() * 1000000000),  # nanosecond
     }
 
-    producer.produce(TOPIC, bytes(json.dumps(msg), "utf-8"), on_delivery = delivery)
+    producer.produce(TOPIC, bytes(json.dumps(msg), "utf-8"), on_delivery=delivery)
     producer.poll()
 
 
@@ -51,4 +52,3 @@ if __name__ == "__main__":
     while True:
         produce_buy_order(producer)
         time.sleep(1.0)
-        
