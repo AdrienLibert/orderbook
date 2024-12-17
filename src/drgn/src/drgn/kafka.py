@@ -41,7 +41,6 @@ class KafkaClient:
         self._consumer_config["auto.offset.reset"] = "earliest"
         self._consumer_config["enable.auto.commit"] = False
         self.consumer.assign([self._get_topic_partition(topic)])
-        
         if isinstance(env_config, dict):
                 consumer_config = env_config.get('consumer', {})
         else:
