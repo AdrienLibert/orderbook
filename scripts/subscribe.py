@@ -10,8 +10,16 @@ import uuid
 # defined in topics_config.yaml. if changed, need to rebuild the image.
 TOPIC = "orders.topic"
 
-def commit(err, topics):
-    print(f"error on commit: {err}: {topics}")
+def commit(err: KafkaError, topics: list[TopicPartition]):
+    if not err.fatal():
+        return
+    err_dict: dict = {"origin": "on_commit"}
+    if err:
+        err_dict["error"] = err.str()
+    if topics:
+        err_dict["topics"] = [topic.topic for topic in topics]
+    print(f"ERROR - {err_dict}")
+    
 
 def consume_orders(consumer: Consumer):
     while True:
