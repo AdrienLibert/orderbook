@@ -52,3 +52,5 @@ if __name__ == "__main__":
     while True:
         produce_buy_order(producer)
         time.sleep(1.0)
+        produce_sell_order(producer)
+
