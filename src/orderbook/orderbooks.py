@@ -1,3 +1,5 @@
+# Simple OrderBook in Python using a Stack-like structure to manage buy and sell orders in bid and ask
+
 import json
 from drgn.kafka import KafkaClient
 import threading
@@ -21,6 +23,9 @@ class Stack(list):
 
     def size(self):
         return len(self)
+    
+    def is_empty(self):
+        return len(self) == 0
 
     def __str__(self):
         return super().__str__()
@@ -28,7 +33,6 @@ class Stack(list):
 
 class OrderBookError(Exception):
     pass
-
 
 class SimpleOrderBook:
     def __init__(self, bid: Stack, ask: Stack, kafka_client: KafkaClient):
@@ -43,48 +47,75 @@ class SimpleOrderBook:
 
     def match(self, order: dict):
         in_, out_, action, comparator, order["quantity"] = (
-            (self.bid, self.ask, "Buy", lambda x, y: x <= y, order["quantity"]) if order["quantity"] > 0
+            (self.bid, self.ask, "Buy", lambda x, y: x <= y, order["quantity"])
+            if order["quantity"] > 0
             else (self.ask, self.bid, "Sell", lambda x, y: x >= y, -order["quantity"])
-            )
-        while order["quantity"] > 0 and out_ and comparator(order["price"], out_.peek()["price"]):
-            #with self.lock:
+        )
+        while (
+            order["quantity"] > 0
+            and not out_.is_empty()
+            and comparator(order["price"], out_.peek()["price"])
+        ):
+            # with self.lock:
             right_order = out_.peek()
             trade_quantity = min(order["quantity"], right_order["quantity"])
-            print(f"Executed trade: {action} {trade_quantity} @ {right_order['price']} | "
+            print(
+                f"Executed trade: {action} {trade_quantity} @ {right_order['price']} | "
                 f"Left Order ID: {order['order_id']}, Right Order ID: {right_order['order_id']} | "
-                f"Left Order Quantity: {order['quantity']}, Right Order Quantity: {right_order['quantity']}")
+                f"Left Order Quantity: {order['quantity']}, Right Order Quantity: {right_order['quantity']}"
+            )
             order["quantity"] -= trade_quantity
             right_order["quantity"] -= trade_quantity
-            self.publish_trade(order["order_id"], right_order["order_id"], trade_quantity, right_order["price"], action)
+            self.publish_trade(
+                order["order_id"],
+                right_order["order_id"],
+                trade_quantity,
+                right_order["price"],
+                action,
+            )
             if right_order["quantity"] == 0:
                 out_.pop()
             if order["quantity"] == 0 or right_order["quantity"] == 0:
                 self.publish_price(right_order["price"])
-        if order["quantity"] > 0:
+        if order["quantity"] > 0 or out_.is_empty():
             in_.push(order)
 
-    def publish_trade(self, left_order_id : str, right_order_id : str, quantity : int, price : int, action : str):
+    def publish_trade(
+        self,
+        left_order_id: str,
+        right_order_id: str,
+        quantity: int,
+        price: int,
+        action: str,
+    ):
         status = "closed" if quantity == 0 else "partial"
         self.kafka_client.produce(
             self._ORDER_STATUS_TOPIC,
-            bytes(json.dumps({
-                "left_order_id":left_order_id,
-                "right_order_id": right_order_id,
-                "quantity": quantity,
-                "price": price,
-                "action": action,
-                "status": status,
-            }), "utf-8"),
+            bytes(
+                json.dumps(
+                    {
+                        "left_order_id": left_order_id,
+                        "right_order_id": right_order_id,
+                        "quantity": quantity,
+                        "price": price,
+                        "action": action,
+                        "status": status,
+                    }
+                ),
+                "utf-8",
+            ),
         )
-        print(f"{self._ORDER_STATUS_TOPIC}: "
-          f"Left Order ID: {left_order_id} "
-          f"Right Order ID: {right_order_id} "
-          f"Quantity: {quantity} "
-          f"@ {price} "
-          f"Action: {action} "
-          f"Status: {status}")
-        
-    def publish_price(self,price):
+        print(
+            f"{self._ORDER_STATUS_TOPIC}: "
+            f"Left Order ID: {left_order_id} "
+            f"Right Order ID: {right_order_id} "
+            f"Quantity: {quantity} "
+            f"@ {price} "
+            f"Action: {action} "
+            f"Status: {status}"
+        )
+
+    def publish_price(self, price):
         message = bytes(json.dumps({"last quote price": price}), "utf-8")
         self.kafka_client.produce(self._PRICE_TOPIC, message)
         print(f"{self._PRICE_TOPIC}: last quote price '{price}'")
