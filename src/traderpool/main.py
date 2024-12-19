@@ -19,11 +19,11 @@ def start_trader(index,action):
     trader = Trader(
         id = index,
         first_action=action,
-        eqlbm=100,                
+        eqlbm=102,                
         limit_buy=98 - index,      # Slightly different limits for each trader
         limit_sell=100 + index,      
-        aggressiveness_buy=0.2,   
-        aggressiveness_sell=0.3,
+        aggressiveness_buy=0.02,   
+        aggressiveness_sell=0.03,
         theta=-3.0,                
         kafka_client=KafkaClient()
     )   

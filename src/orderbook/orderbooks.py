@@ -68,6 +68,7 @@ class SimpleOrderBook:
             order["quantity"] -= trade_quantity
             right_order["quantity"] -= trade_quantity
             self.publish_trade(
+                order["trader_id"],
                 order["order_id"],
                 right_order["order_id"],
                 trade_quantity,
@@ -83,6 +84,7 @@ class SimpleOrderBook:
 
     def publish_trade(
         self,
+        trader_id: int,
         left_order_id: str,
         right_order_id: str,
         quantity: int,
@@ -95,6 +97,7 @@ class SimpleOrderBook:
             bytes(
                 json.dumps(
                     {
+                        "trader_id": trader_id,
                         "left_order_id": left_order_id,
                         "right_order_id": right_order_id,
                         "quantity": quantity,
@@ -108,6 +111,7 @@ class SimpleOrderBook:
         )
         print(
             f"{self._ORDER_STATUS_TOPIC}: "
+            f"Trader ID: {trader_id} "
             f"Left Order ID: {left_order_id} "
             f"Right Order ID: {right_order_id} "
             f"Quantity: {quantity} "

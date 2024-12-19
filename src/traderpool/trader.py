@@ -19,7 +19,7 @@ class Trader:
         self.kafka_client = kafka_client
 
         self.buy_quantity = 10
-        self.sell_quantity = 0
+        self.sell_quantity = 10
 
         self._QUOTES_TOPIC = "orders.topic"
         self._ORDER_STATUS_TOPIC = "order.status.topic"
@@ -36,19 +36,23 @@ class Trader:
             self.target_buy = self.eqlbm + (self.limit_buy - self.eqlbm) * (
                 (math.exp(self.aggressiveness_buy * self.theta) - 1) / (math.exp(self.theta) - 1)
             )
+            print(self.target_buy)
         else:
             self.target_buy = self.limit_buy * (
                 1 - (math.exp(-self.aggressiveness_buy * self.theta) - 1) / (math.exp(self.theta) - 1)
             )
+            print(self.target_buy)
 
         if self.limit_sell < self.eqlbm:
             self.target_sell = self.eqlbm + (self.limit_sell - self.eqlbm) * (
                 (math.exp(-self.aggressiveness_sell * self.theta) - 1) / (math.exp(self.theta) - 1)
             )
+            print(self.target_sell)
         else: 
             self.target_sell = self.limit_sell * (
                 (math.exp(self.aggressiveness_sell * self.theta) - 1) / (math.exp(self.theta) - 1)
             )
+            print(self.target_sell)
 
     def produce_buy_order(self):
         msg = {
@@ -86,16 +90,16 @@ class Trader:
     def consume_trade(self):
         for msgs in self.kafka_client.consume(self._ORDER_STATUS_TOPIC):
             for msg in msgs:
-                data = json.loads(msg.value().decode('utf-8'))
-                if data.get("trader_id") == self.id:
-                    status = data.get("status", "Unknown")
+                print(msg)
+                if msg["trader_id"] == self.id:
+                    status = msg["status"]
                     print(f"Received Trade Update:")
                     print(f"Status: {status}")
                     while status != "closed":
                         time.sleep(1)
                         self.consume_trade()
                     self.consume_last_price()  
-                    if data.get("action", "Unknown") == "buy":
+                    if msg["action"] == "buy":
                         self.produce_sell_order()
                     else:
                         self.produce_sell_order()                    
