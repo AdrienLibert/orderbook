@@ -46,6 +46,7 @@ class SimpleOrderBook:
         self._PRICE_TOPIC = "order.last_price.topic"
 
     def match(self, order: dict):
+        print(order)
         in_, out_, action, comparator, order["quantity"] = (
             (self.bid, self.ask, "Buy", lambda x, y: x <= y, order["quantity"])
             if order["quantity"] > 0

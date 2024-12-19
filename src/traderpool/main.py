@@ -14,12 +14,14 @@ import threading
 #     )   
 #     trader.start()
 
-def start_trader(index):
+def start_trader(index,action):
     print(f"Starting trader {index}")
     trader = Trader(
+        id = index,
+        first_action=action,
         eqlbm=100,                
-        limit_buy=105 + index,      # Slightly different limits for each trader
-        limit_sell=95 - index,      
+        limit_buy=98 - index,      # Slightly different limits for each trader
+        limit_sell=100 + index,      
         aggressiveness_buy=0.2,   
         aggressiveness_sell=0.3,
         theta=-3.0,                
@@ -29,8 +31,10 @@ def start_trader(index):
 
 def start_multiple_traders(num_traders):
     threads = []
+    j = -1
     for i in range(num_traders):
-        t = threading.Thread(target=start_trader, args=(i,))
+        j = -1 * j
+        t = threading.Thread(target=start_trader, args=(i,j,))
         t.start()
         threads.append(t)
 

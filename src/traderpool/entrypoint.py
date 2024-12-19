@@ -6,4 +6,4 @@ if __name__ == "__main__":
 
     from main import start_multiple_traders
 
-    start_multiple_traders(10)
+    start_multiple_traders(2)

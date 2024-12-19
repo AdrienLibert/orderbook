@@ -7,7 +7,9 @@ from drgn.kafka import KafkaClient
 import time
 
 class Trader:
-    def __init__(self, eqlbm: float, limit_buy: float, limit_sell: float, aggressiveness_buy: float, aggressiveness_sell: float, theta: float, kafka_client: KafkaClient):
+    def __init__(self, id: int ,first_action: int,eqlbm: float, limit_buy: float, limit_sell: float, aggressiveness_buy: float, aggressiveness_sell: float, theta: float, kafka_client: KafkaClient):
+        self.id = id
+        self.first_action = first_action
         self.eqlbm = eqlbm
         self.limit_buy = limit_buy 
         self.limit_sell = limit_sell
@@ -44,12 +46,13 @@ class Trader:
                 (math.exp(-self.aggressiveness_sell * self.theta) - 1) / (math.exp(self.theta) - 1)
             )
         else: 
-            self.target_sell = self.limit_sell + (self.marketMax - self.limit_sell) * (
+            self.target_sell = self.limit_sell * (
                 (math.exp(self.aggressiveness_sell * self.theta) - 1) / (math.exp(self.theta) - 1)
             )
 
     def produce_buy_order(self):
         msg = {
+            "trader_id": self.id,
             "order_id": str(uuid.uuid4()),
             "order_type": "limit",
             "side": "buy",
@@ -58,9 +61,12 @@ class Trader:
             "time": int(datetime.now(timezone.utc).timestamp() * 1e9),
         }
         self.kafka_client.produce(self._QUOTES_TOPIC, bytes(json.dumps(msg),"utf-8"))
+        self.consume_trade()
+
 
     def produce_sell_order(self):
         msg = {
+            "trader_id": self.id,
             "order_id": str(uuid.uuid4()),
             "order_type": "limit",
             "side": "sell",
@@ -69,6 +75,7 @@ class Trader:
             "time": int(datetime.now(timezone.utc).timestamp() * 1e9),
         }
         self.kafka_client.produce(self._QUOTES_TOPIC, bytes(json.dumps(msg),"utf-8"))
+        self.consume_trade()
 
 
     def consume_last_price(self):
@@ -79,26 +86,26 @@ class Trader:
     def consume_trade(self):
         for msgs in self.kafka_client.consume(self._ORDER_STATUS_TOPIC):
             for msg in msgs:
-                print(msg)
-                # data = json.loads(msg.value().decode('utf-8'))
-                # left_order_id = data.get("left_order_id", "Unknown")
-                # right_order_id = data.get("right_order_id", "Unknown")
-                # quantity = data.get("quantity", 0)
-                # price = data.get("price", 0)
-                # action = data.get("action", "Unknown")
-                # status = data.get("status", "Unknown")
-                # print(f"Received Trade Update:")
-                # print(f"  Left Order ID: {left_order_id}")
-                # print(f"  Right Order ID: {right_order_id}")
-                # print(f"  Quantity: {quantity}")
-                # print(f"  Price: {price}")
-                # print(f"  Action: {action}")
-                # print(f"  Status: {status}")
+                data = json.loads(msg.value().decode('utf-8'))
+                if data.get("trader_id") == self.id:
+                    status = data.get("status", "Unknown")
+                    print(f"Received Trade Update:")
+                    print(f"Status: {status}")
+                    while status != "closed":
+                        time.sleep(1)
+                        self.consume_trade()
+                    self.consume_last_price()  
+                    if data.get("action", "Unknown") == "buy":
+                        self.produce_sell_order()
+                    else:
+                        self.produce_sell_order()                    
 
     def start(self):
-        self.update_target_prices()
-        self.produce_buy_order()
-        time.sleep(10)
-        self.consume_trade()  
-        self.consume_last_price()      
-        self.produce_sell_order()
+        while True:
+            self.update_target_prices()
+            print("bug")
+            if self.first_action == 1:
+                self.produce_buy_order()
+            else:
+                self.produce_sell_order()
+            time.sleep(10)
