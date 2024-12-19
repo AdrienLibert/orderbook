@@ -1,3 +1,5 @@
+# Simple OrderBook in Python using a Stack-like structure to manage buy and sell orders in bid and ask
+
 import json
 from drgn.kafka import KafkaClient
 import threading
@@ -31,7 +33,6 @@ class Stack(list):
 
 class OrderBookError(Exception):
     pass
-
 
 class SimpleOrderBook:
     def __init__(self, bid: Stack, ask: Stack, kafka_client: KafkaClient):
@@ -76,7 +77,7 @@ class SimpleOrderBook:
                 out_.pop()
             if order["quantity"] == 0 or right_order["quantity"] == 0:
                 self.publish_price(right_order["price"])
-        if order["quantity"] > 0:
+        if order["quantity"] > 0 or out_.is_empty():
             in_.push(order)
 
     def publish_trade(
