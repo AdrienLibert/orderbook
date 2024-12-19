@@ -21,6 +21,9 @@ class Stack(list):
 
     def size(self):
         return len(self)
+    
+    def is_empty(self):
+        return len(self) == 0
 
     def __str__(self):
         return super().__str__()
@@ -49,7 +52,7 @@ class SimpleOrderBook:
         )
         while (
             order["quantity"] > 0
-            and out_
+            and not out_.is_empty()
             and comparator(order["price"], out_.peek()["price"])
         ):
             # with self.lock:
