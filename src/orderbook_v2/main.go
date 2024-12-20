@@ -4,9 +4,24 @@ import (
 	"fmt"
 
 	"github.com/shopspring/decimal"
+
+	"github.com/IBM/sarama"
 )
 
+var topic string = ""
+
 type Order struct {
+}
+
+type KafkaClient struct {
+	config   sarama.Config
+	consumer sarama.ConsumerGroup
+}
+
+func NewKafkaClient() *KafkaClient {
+	kc := new(KafkaClient)
+	kc.config = *sarama.NewConfig()
+	return kc
 }
 
 type Orderbook struct {
