@@ -1,6 +1,7 @@
 from trader import Trader
 from drgn.kafka import KafkaClient
 import threading
+import random
 
 # def start():
 #     trader = Trader(
@@ -19,11 +20,11 @@ def start_trader(index,action):
     trader = Trader(
         id = index,
         first_action=action,
-        eqlbm=102,                
+        eqlbm=102,               # We have to change this value 
         limit_buy=98 - index,      # Slightly different limits for each trader
         limit_sell=100 + index,      
-        aggressiveness_buy=0.02,   
-        aggressiveness_sell=0.03,
+        aggressiveness_buy=0.2 * random.random(),   
+        aggressiveness_sell=0.3 * random.random(),
         theta=-3.0,                
         kafka_client=KafkaClient()
     )   

@@ -109,16 +109,6 @@ class SimpleOrderBook:
                 "utf-8",
             ),
         )
-        print(
-            f"{self._ORDER_STATUS_TOPIC}: "
-            f"Trader ID: {trader_id} "
-            f"Left Order ID: {left_order_id} "
-            f"Right Order ID: {right_order_id} "
-            f"Quantity: {quantity} "
-            f"@ {price} "
-            f"Action: {action} "
-            f"Status: {status}"
-        )
 
     def publish_price(self, price):
         message = bytes(json.dumps({"last quote price": price}), "utf-8")
