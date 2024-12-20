@@ -1,3 +1,5 @@
+# Simple OrderBook in Python using a Stack-like structure to manage buy and sell orders in bid and ask
+
 import json
 from drgn.kafka import KafkaClient
 import threading
@@ -21,14 +23,16 @@ class Stack(list):
 
     def size(self):
         return len(self)
+    
+    def is_empty(self):
+        return len(self) == 0
 
     def __str__(self):
-        return str(self)
+        return super().__str__()
 
 
 class OrderBookError(Exception):
     pass
-
 
 class SimpleOrderBook:
     def __init__(self, bid: Stack, ask: Stack, kafka_client: KafkaClient):
@@ -42,6 +46,7 @@ class SimpleOrderBook:
         self._PRICE_TOPIC = "order.last_price.topic"
 
     def match(self, order: dict):
+        print(order)
         in_, out_, action, comparator, order["quantity"] = (
             (self.bid, self.ask, "Buy", lambda x, y: x <= y, order["quantity"])
             if order["quantity"] > 0
@@ -49,7 +54,7 @@ class SimpleOrderBook:
         )
         while (
             order["quantity"] > 0
-            and out_
+            and not out_.is_empty()
             and comparator(order["price"], out_.peek()["price"])
         ):
             # with self.lock:
@@ -63,6 +68,7 @@ class SimpleOrderBook:
             order["quantity"] -= trade_quantity
             right_order["quantity"] -= trade_quantity
             self.publish_trade(
+                order["trader_id"],
                 order["order_id"],
                 right_order["order_id"],
                 trade_quantity,
@@ -73,11 +79,12 @@ class SimpleOrderBook:
                 out_.pop()
             if order["quantity"] == 0 or right_order["quantity"] == 0:
                 self.publish_price(right_order["price"])
-        if order["quantity"] > 0:
+        if order["quantity"] > 0 or out_.is_empty():
             in_.push(order)
 
     def publish_trade(
         self,
+        trader_id: int,
         left_order_id: str,
         right_order_id: str,
         quantity: int,
@@ -90,6 +97,7 @@ class SimpleOrderBook:
             bytes(
                 json.dumps(
                     {
+                        "trader_id": trader_id,
                         "left_order_id": left_order_id,
                         "right_order_id": right_order_id,
                         "quantity": quantity,
@@ -100,15 +108,6 @@ class SimpleOrderBook:
                 ),
                 "utf-8",
             ),
-        )
-        print(
-            f"{self._ORDER_STATUS_TOPIC}: "
-            f"Left Order ID: {left_order_id} "
-            f"Right Order ID: {right_order_id} "
-            f"Quantity: {quantity} "
-            f"@ {price} "
-            f"Action: {action} "
-            f"Status: {status}"
         )
 
     def publish_price(self, price):
