@@ -25,7 +25,7 @@ class Stack(list):
         return len(self)
     
     def is_empty(self):
-        return len(self) == 0
+        return self is []
 
     def __str__(self):
         return super().__str__()
