@@ -24,9 +24,6 @@ class Stack(list):
     def size(self):
         return len(self)
     
-    def is_empty(self):
-        return self is []
-
     def __str__(self):
         return super().__str__()
 
@@ -53,7 +50,7 @@ class SimpleOrderBook:
         )
         while (
             order["quantity"] > 0
-            and not out_.is_empty()
+            and out_
             and comparator(order["price"], out_.peek()["price"])
         ):
             # with self.lock:
@@ -77,7 +74,7 @@ class SimpleOrderBook:
                 out_.pop()
             if order["quantity"] == 0 or right_order["quantity"] == 0:
                 self.publish_price(right_order["price"])
-        if order["quantity"] > 0 or out_.is_empty():
+        if order["quantity"] > 0 or out_ == 0:
             in_.push(order)
 
     def publish_trade(
