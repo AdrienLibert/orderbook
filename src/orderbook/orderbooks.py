@@ -74,7 +74,7 @@ class SimpleOrderBook:
                 out_.pop()
             if order["quantity"] == 0 or right_order["quantity"] == 0:
                 self.publish_price(right_order["price"])
-        if order["quantity"] > 0 or out_:
+        if order["quantity"] > 0 or out_ is None:
             in_.push(order)
 
     def publish_trade(
