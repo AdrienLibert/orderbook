@@ -40,6 +40,7 @@ class SimpleOrderBook:
         self.kafka_client = kafka_client
 
     def match(self, order: dict):
+        print(order)
         in_, out_, action, comparator, order["quantity"] = (
             (self.bid, self.ask, "Buy", lambda x, y: x <= y, order["quantity"])
             if order["quantity"] > 0
@@ -60,6 +61,7 @@ class SimpleOrderBook:
             order["quantity"] -= trade_quantity
             out_order["quantity"] -= trade_quantity
             self.publish_trade(
+                order["trader_id"],
                 order["order_id"],
                 out_order["order_id"],
                 trade_quantity,
@@ -75,6 +77,7 @@ class SimpleOrderBook:
 
     def publish_trade(
         self,
+        trader_id: int,
         left_order_id: str,
         right_order_id: str,
         quantity: int,
@@ -87,6 +90,7 @@ class SimpleOrderBook:
             bytes(
                 json.dumps(
                     {
+                        "trader_id": trader_id,
                         "left_order_id": left_order_id,
                         "right_order_id": right_order_id,
                         "quantity": quantity,
@@ -97,15 +101,6 @@ class SimpleOrderBook:
                 ),
                 "utf-8",
             ),
-        )
-        print(
-            f"{self._ORDER_STATUS_TOPIC}: "
-            f"Left Order ID: {left_order_id} "
-            f"Right Order ID: {right_order_id} "
-            f"Quantity: {quantity} "
-            f"@ {price} "
-            f"Action: {action} "
-            f"Status: {status}"
         )
 
     def publish_price(self, price):
