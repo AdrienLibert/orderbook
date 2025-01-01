@@ -18,23 +18,26 @@ class Stack(list):
 
     def size(self):
         return len(self)
-    
+
     def __str__(self):
         return super().__str__()
+
 
 class OrderBookError(Exception):
     pass
 
+
 class SimpleOrderBook:
+
+    _QUOTES_TOPIC = "orders.topic"
+    _ORDER_STATUS_TOPIC = "order.status.topic"
+    _PRICE_TOPIC = "order.last_price.topic"
+
     def __init__(self, bid: Stack, ask: Stack, kafka_client: KafkaClient):
         self.bid = bid
         self.ask = ask
         self.lock = threading.Lock()
         self.kafka_client = kafka_client
-
-        self._QUOTES_TOPIC = "orders.topic"
-        self._ORDER_STATUS_TOPIC = "order.status.topic"
-        self._PRICE_TOPIC = "order.last_price.topic"
 
     def match(self, order: dict):
         in_, out_, action, comparator, order["quantity"] = (
@@ -47,28 +50,27 @@ class SimpleOrderBook:
             and out_
             and comparator(order["price"], out_[0]["price"])
         ):
-            # with self.lock:
-            right_order = out_[0]
-            trade_quantity = min(order["quantity"], right_order["quantity"])
+            out_order = out_[0]  # can pop() for thread safe operations
+            trade_quantity = min(order["quantity"], out_order["quantity"])
             print(
-                f"Executed trade: {action} {trade_quantity} @ {right_order['price']} | "
-                f"Left Order ID: {order['order_id']}, Right Order ID: {right_order['order_id']} | "
-                f"Left Order Quantity: {order['quantity']}, Right Order Quantity: {right_order['quantity']}"
+                f"Executed trade: {action} {trade_quantity} @ {out_order['price']} | "
+                f"Left Order ID: {order['order_id']}, Right Order ID: {out_order['order_id']} | "
+                f"Left Order Quantity: {order['quantity']}, Right Order Quantity: {out_order['quantity']}"
             )
             order["quantity"] -= trade_quantity
-            right_order["quantity"] -= trade_quantity
+            out_order["quantity"] -= trade_quantity
             self.publish_trade(
                 order["order_id"],
-                right_order["order_id"],
+                out_order["order_id"],
                 trade_quantity,
-                right_order["price"],
+                out_order["price"],
                 action,
             )
-            if right_order["quantity"] == 0:
+            if out_order["quantity"] == 0:
                 out_.pop()
-            if order["quantity"] == 0 or right_order["quantity"] == 0:
-                self.publish_price(right_order["price"])
-        if order["quantity"] > 0 or not out_:
+            if order["quantity"] == 0 or out_order["quantity"] == 0:
+                self.publish_price(out_order["price"])
+        if order["quantity"] > 0:
             in_.push(order)
 
     def publish_trade(
