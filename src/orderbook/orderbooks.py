@@ -16,17 +16,11 @@ class Stack(list):
         self.append(order)
         self._sort()
 
-    def peek(self):
-        if not self:
-            return None
-        return self[0]
-
     def size(self):
         return len(self)
     
     def __str__(self):
         return super().__str__()
-
 
 class OrderBookError(Exception):
     pass
@@ -51,10 +45,10 @@ class SimpleOrderBook:
         while (
             order["quantity"] > 0
             and out_
-            and comparator(order["price"], out_.peek()["price"])
+            and comparator(order["price"], out_[0]["price"])
         ):
             # with self.lock:
-            right_order = out_.peek()
+            right_order = out_[0]
             trade_quantity = min(order["quantity"], right_order["quantity"])
             print(
                 f"Executed trade: {action} {trade_quantity} @ {right_order['price']} | "
