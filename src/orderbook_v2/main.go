@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/signal"
@@ -11,6 +12,19 @@ import (
 )
 
 type Order struct {
+	orderId   string
+	orderType string
+	price     float64
+	quantity  int
+	timestamp int
+}
+
+type OrderRequest struct {
+	order_id   string
+	order_type string
+	price      float64
+	quantity   int
+	timestamp  int
 }
 
 type KafkaClient struct {
@@ -21,10 +35,13 @@ type KafkaClient struct {
 
 func NewKafkaClient() *KafkaClient {
 	kc := new(KafkaClient)
+	kc.brokers = []string{"localhost:9094"}
 	kc.config = sarama.NewConfig()
 	kc.config.ClientID = "go-orderbook-consumer"
 	kc.config.Consumer.Return.Errors = true
-	kc.brokers = []string{"localhost:9094"}
+	kc.config.Net.SASL.Enable = false
+	kc.config.Net.SASL.Mechanism = sarama.SASLTypePlaintext
+	kc.config.Consumer.Offsets.Initial = sarama.OffsetNewest
 	return kc
 }
 
@@ -37,14 +54,14 @@ func (kc *KafkaClient) GetConsumer() *sarama.Consumer {
 		panic(err)
 	}
 	defer func() {
-		if err := consumer.Close(); err != nil {
+		if err != nil {
 			panic(err)
 		}
 	}()
 	return &consumer
 }
 
-func (kc *KafkaClient) assign(master sarama.Consumer, topic string) (chan *sarama.ConsumerMessage, chan *sarama.ConsumerError) {
+func (kc *KafkaClient) Assign(master sarama.Consumer, topic string) (chan *sarama.ConsumerMessage, chan *sarama.ConsumerError) {
 
 	consumers := make(chan *sarama.ConsumerMessage)
 	errors := make(chan *sarama.ConsumerError)
@@ -56,7 +73,6 @@ func (kc *KafkaClient) assign(master sarama.Consumer, topic string) (chan *saram
 		panic(err)
 	}
 	fmt.Println("Partitions: ", topics)
-	// debuging here, somehow cannot connect to local kafka ?
 	consumer, err := master.ConsumePartition(
 		topic,
 		partitions[0], // only first partition for now
@@ -93,34 +109,30 @@ type Orderbook struct {
 	_quoteTopic string
 }
 
-func SimpleOrderBook(bid map[decimal.Decimal][]Order, ask map[decimal.Decimal][]Order, kafkaClient *KafkaClient) *Orderbook {
-	o := new(Orderbook)
-	o.bid = bid
-	o.ask = ask
-	o.kafkaClient = kafkaClient
-	o._quoteTopic = "orders.topic"
-	return o
+func (o Orderbook) Process(order *sarama.ConsumerMessage) {
+	// in_order := json.Unmarshal([]byte(order.Value))
 }
 
 func (o Orderbook) Start() {
 	master := o.kafkaClient.GetConsumer()
-	consumer, errors := o.kafkaClient.assign(*master, o._quoteTopic)
+	consumer, errors := o.kafkaClient.Assign(*master, o._quoteTopic)
 
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt)
 
 	msgCount := 0
-	// Get signnal for finish
 	doneCh := make(chan struct{})
 	go func() {
 		for {
 			select {
 			case msg := <-consumer:
 				msgCount++
-				fmt.Println("Received messages", string(msg.Key), string(msg.Value))
+				// fmt.Println("Received messages:", string(msg.Key), string(msg.Value))
+				var order, _ = convertMessageToOrderType(msg.Value)
+				fmt.Println(order.orderId, order.orderType, string(msg.Value))
 			case consumerError := <-errors:
 				msgCount++
-				fmt.Println("Received consumerError ", string(consumerError.Topic), string(consumerError.Partition), consumerError.Err)
+				fmt.Println("Received consumerError:", string(consumerError.Topic), string(consumerError.Partition), consumerError.Err)
 				doneCh <- struct{}{}
 			case <-signals:
 				fmt.Println("Interrupt is detected")
@@ -129,12 +141,38 @@ func (o Orderbook) Start() {
 		}
 	}()
 	<-doneCh
-	fmt.Println("Processed", msgCount, "messages")
+	fmt.Println("Closing... processed", msgCount, "messages")
+}
+
+func NewOrderBook(bid map[decimal.Decimal][]Order, ask map[decimal.Decimal][]Order, kafkaClient *KafkaClient) *Orderbook {
+	o := new(Orderbook)
+	o.bid = bid
+	o.ask = ask
+	o.kafkaClient = kafkaClient
+	o._quoteTopic = "orders.topic"
+	return o
+}
+
+func convertMessageToOrderType(messageValue []byte) (Order, error) {
+	var request OrderRequest
+	if er := json.Unmarshal(messageValue, &request); er != nil {
+		return Order{}, er
+	}
+
+	order := Order{
+		orderId:   request.order_id,
+		orderType: request.order_type,
+		price:     request.price,
+		quantity:  request.quantity,
+		timestamp: request.timestamp,
+	}
+
+	return order, nil
 }
 
 func main() {
 	fmt.Println("Starting orderbook")
-	o := SimpleOrderBook(
+	o := NewOrderBook(
 		make(map[decimal.Decimal][]Order),
 		make(map[decimal.Decimal][]Order),
 		NewKafkaClient(),

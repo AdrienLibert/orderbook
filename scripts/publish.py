@@ -24,7 +24,7 @@ def produce_buy_order(producer: Producer):
         "order_type": "limit",
         "price": random.randint(45, 60),
         "quantity": random.randint(1, 50),
-        "time": int(datetime.now(timezone.utc).timestamp() * 1000000000),  # nanosecond
+        "timestamp": int(datetime.now(timezone.utc).timestamp() * 1000000000),  # nanosecond
     }
 
     producer.produce(TOPIC, bytes(json.dumps(msg), "utf-8"), on_delivery=delivery)
@@ -37,7 +37,7 @@ def produce_sell_order(producer: Producer):
         "order_type": "limit",
         "price": random.randint(45, 60),
         "quantity": -random.randint(1, 50),
-        "time": int(datetime.now(timezone.utc).timestamp() * 1000000000),  # nanosecond
+        "timestamp": int(datetime.now(timezone.utc).timestamp() * 1000000000),  # nanosecond
     }
 
     producer.produce(TOPIC, bytes(json.dumps(msg), "utf-8"))
