@@ -3,28 +3,20 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"os/signal"
-
-	"github.com/shopspring/decimal"
+	"sort"
 
 	"github.com/IBM/sarama"
 )
 
 type Order struct {
-	orderId   string
-	orderType string
-	price     float64
-	quantity  int
-	timestamp int
-}
-
-type OrderRequest struct {
-	order_id   string
-	order_type string
-	price      float64
-	quantity   int
-	timestamp  int
+	OrderID   string  `json:"order_id"`
+	OrderType string  `json:"order_type"`
+	Price     float64 `json:"price"`
+	Quantity  float64 `json:"quantity"`
+	Timestamp float64 `json:"timestamp"`
 }
 
 type KafkaClient struct {
@@ -72,7 +64,7 @@ func (kc *KafkaClient) Assign(master sarama.Consumer, topic string) (chan *saram
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("Partitions: ", topics)
+	fmt.Println("Topics: ", topics)
 	consumer, err := master.ConsumePartition(
 		topic,
 		partitions[0], // only first partition for now
@@ -93,7 +85,6 @@ func (kc *KafkaClient) Assign(master sarama.Consumer, topic string) (chan *saram
 				fmt.Println("consumerError: ", consumerError.Err)
 			case msg := <-consumer.Messages():
 				consumers <- msg
-				fmt.Println("Got message on topic ", topic, msg.Value)
 			}
 		}
 	}(topic, consumer)
@@ -102,18 +93,72 @@ func (kc *KafkaClient) Assign(master sarama.Consumer, topic string) (chan *saram
 }
 
 type Orderbook struct {
-	bid         map[decimal.Decimal][]Order
-	ask         map[decimal.Decimal][]Order
+	bid         []*Order
+	ask         []*Order
 	kafkaClient *KafkaClient
 
 	_quoteTopic string
 }
 
-func (o Orderbook) Process(order *sarama.ConsumerMessage) {
-	// in_order := json.Unmarshal([]byte(order.Value))
+func cut(i int, xs []*Order) (*Order, []*Order) {
+	y := xs[i]
+	ys := append(xs[:i], xs[i+1:]...)
+	return y, ys
 }
 
-func (o Orderbook) Start() {
+func (o *Orderbook) Process(inOrder *Order) {
+	var in, out []*Order
+	var action string
+	var comparator func(x, y float64) bool
+
+	if inOrder.Quantity > 0 {
+		in = o.bid
+		out = o.ask
+		action = "buy"
+		comparator = func(x, y float64) bool { return x >= y }
+	} else {
+		in = o.ask
+		out = o.bid
+		action = "sell"
+		inOrder.Quantity = -inOrder.Quantity
+		comparator = func(x, y float64) bool { return x <= y }
+	}
+	fmt.Println(inOrder.Quantity, len(out), inOrder.Price)
+
+	for inOrder.Quantity > 0 && len(out) > 0 && comparator(inOrder.Price, out[0].Price) {
+		var outOrder *Order
+		outOrder, out = cut(0, out)
+		fmt.Println(inOrder, outOrder)
+
+		tradeQuantity := math.Min(inOrder.Quantity, outOrder.Quantity)
+		fmt.Printf(
+			"Executed trade: %s %f @ %f | Left Order ID: %s, Right Order ID: %s | "+
+				"Left Order Quantity: %f, Right Order Quantity: %f\n",
+			action, tradeQuantity, outOrder.Price, inOrder.OrderID, outOrder.OrderID,
+			inOrder.Quantity, outOrder.Quantity,
+		)
+
+		inOrder.Quantity -= tradeQuantity
+		outOrder.Quantity -= tradeQuantity
+
+		if outOrder.Quantity > 0 {
+			out = append(out, outOrder)
+			fmt.Println("adding to bid or ask:", outOrder)
+			sort.Slice(in, func(i, j int) bool { return in[i].Price > in[j].Price })
+		}
+	}
+
+	if inOrder.Quantity > 0 {
+		in = append(in, inOrder)
+		fmt.Println("adding to bid or ask:", inOrder)
+		sort.Slice(in, func(i, j int) bool { return in[i].Price > in[j].Price })
+	}
+
+	fmt.Println(len(in), in)
+	fmt.Println(len(out), out)
+}
+
+func (o *Orderbook) Start() {
 	master := o.kafkaClient.GetConsumer()
 	consumer, errors := o.kafkaClient.Assign(*master, o._quoteTopic)
 
@@ -127,9 +172,11 @@ func (o Orderbook) Start() {
 			select {
 			case msg := <-consumer:
 				msgCount++
-				// fmt.Println("Received messages:", string(msg.Key), string(msg.Value))
-				var order, _ = convertMessageToOrderType(msg.Value)
-				fmt.Println(order.orderId, order.orderType, string(msg.Value))
+				order, err := convertMessageToOrder(msg.Value)
+				if err != nil {
+					handleError(err)
+				}
+				o.Process(&order)
 			case consumerError := <-errors:
 				msgCount++
 				fmt.Println("Received consumerError:", string(consumerError.Topic), string(consumerError.Partition), consumerError.Err)
@@ -144,7 +191,7 @@ func (o Orderbook) Start() {
 	fmt.Println("Closing... processed", msgCount, "messages")
 }
 
-func NewOrderBook(bid map[decimal.Decimal][]Order, ask map[decimal.Decimal][]Order, kafkaClient *KafkaClient) *Orderbook {
+func NewOrderBook(bid []*Order, ask []*Order, kafkaClient *KafkaClient) *Orderbook {
 	o := new(Orderbook)
 	o.bid = bid
 	o.ask = ask
@@ -153,28 +200,24 @@ func NewOrderBook(bid map[decimal.Decimal][]Order, ask map[decimal.Decimal][]Ord
 	return o
 }
 
-func convertMessageToOrderType(messageValue []byte) (Order, error) {
-	var request OrderRequest
-	if er := json.Unmarshal(messageValue, &request); er != nil {
-		return Order{}, er
+func handleError(err error) {
+	fmt.Println("invalid message consummed:", err)
+}
+
+func convertMessageToOrder(messageValue []byte) (Order, error) {
+	var order = &Order{}
+	if err := json.Unmarshal(messageValue, order); err != nil {
+		return Order{}, err
 	}
 
-	order := Order{
-		orderId:   request.order_id,
-		orderType: request.order_type,
-		price:     request.price,
-		quantity:  request.quantity,
-		timestamp: request.timestamp,
-	}
-
-	return order, nil
+	return *order, nil
 }
 
 func main() {
 	fmt.Println("Starting orderbook")
 	o := NewOrderBook(
-		make(map[decimal.Decimal][]Order),
-		make(map[decimal.Decimal][]Order),
+		[]*Order{},
+		[]*Order{},
 		NewKafkaClient(),
 	)
 	o.Start()

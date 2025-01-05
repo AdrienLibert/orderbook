@@ -23,7 +23,7 @@ def produce_buy_order(producer: Producer):
         "order_id": str(uuid.uuid4()),
         "order_type": "limit",
         "price": random.randint(45, 60),
-        "quantity": random.randint(1, 50),
+        "quantity": random.randint(-50, 50),
         "timestamp": int(datetime.now(timezone.utc).timestamp() * 1000000000),  # nanosecond
     }
 
