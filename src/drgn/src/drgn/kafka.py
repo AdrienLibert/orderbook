@@ -9,7 +9,6 @@ kafka_config = {
     "security.protocol": env_config["kafka"]["security_protocol"],
 }
 
-
 class KafkaClient:
     def __init__(self, group_id: str = __file__):
         self._consumer_config = kafka_config | {
@@ -38,24 +37,20 @@ class KafkaClient:
         return TopicPartition(topic, 0, 0)
 
     def consume(self, topic: str) -> Generator[list[dict], None, None]:
-        self._consumer_config["auto.offset.reset"] = "earliest"
-        self._consumer_config["enable.auto.commit"] = False
+        self._consumer_config["auto.offset.reset"] = env_config["consumer"][
+            "offset_reset"
+        ]
+        self._consumer_config["enable.auto.commit"] = env_config["consumer"][
+            "enable_auto_commit"
+        ]
         self.consumer.assign([self._get_topic_partition(topic)])
-        if isinstance(env_config, dict):
-                consumer_config = env_config.get('consumer', {})
-        else:
-            try:
-                consumer_config = dict(env_config['consumer']) if 'consumer' in env_config else {}
-            except Exception as e:
-                print(f"Error configuration: {e}")
-                consumer_config = {}
-        consume_size = int(consumer_config.get("consume_size", 10))
-        consume_timeout = float(consumer_config.get("consume_timeout", 1.0))
+        consume_size = int(env_config["consumer"]["consume_size"])
+        consume_timeout = float(env_config["consumer"]["consume_timeout"])
 
+        messages = []
         while True:
             msgs = self.consumer.consume(consume_size, timeout=consume_timeout)
             if not msgs:
-                print("No messages received.")
                 continue
 
             messages = []
@@ -66,10 +61,8 @@ class KafkaClient:
                     else:
                         print(f"ERROR - KafkaException - {msg.error()}")
                 else:
-                    print(f"Message received: {msg.value()}")
                     messages.append(json.loads(msg.value().decode("utf-8")))
 
-            if messages:
                 yield messages
                 self.consumer.commit()
 

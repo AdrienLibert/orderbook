@@ -22,10 +22,8 @@ class Stack(list):
     def __str__(self):
         return super().__str__()
 
-
 class OrderBookError(Exception):
     pass
-
 
 class SimpleOrderBook:
 
@@ -40,63 +38,74 @@ class SimpleOrderBook:
         self.kafka_client = kafka_client
 
     def match(self, order: dict):
-        print(order)
-        in_, out_, action, comparator, order["quantity"] = (
-            (self.bid, self.ask, "Buy", lambda x, y: x <= y, order["quantity"])
-            if order["quantity"] > 0
-            else (self.ask, self.bid, "Sell", lambda x, y: x >= y, -order["quantity"])
-        )
-        while (
-            order["quantity"] > 0
-            and out_
-            and comparator(order["price"], out_[0]["price"])
-        ):
-            out_order = out_[0]  # can pop() for thread safe operations
-            trade_quantity = min(order["quantity"], out_order["quantity"])
-            print(
-                f"Executed trade: {action} {trade_quantity} @ {out_order['price']} | "
-                f"Left Order ID: {order['order_id']}, Right Order ID: {out_order['order_id']} | "
-                f"Left Order Quantity: {order['quantity']}, Right Order Quantity: {out_order['quantity']}"
+        if any(o["order_id"] == order["order_id"] for o in self.bid + self.ask): # Change
+            return
+        with self.lock:
+            in_, out_, action, comparator, order["quantity"] = (
+                (self.bid, self.ask, "buy", lambda x, y: x <= y, order["quantity"])
+                if order["quantity"] > 0
+                else (self.ask, self.bid, "sell", lambda x, y: x >= y, -order["quantity"])
             )
-            order["quantity"] -= trade_quantity
-            out_order["quantity"] -= trade_quantity
-            self.publish_trade(
-                order["trader_id"],
-                order["order_id"],
-                out_order["order_id"],
-                trade_quantity,
-                out_order["price"],
-                action,
-            )
-            if out_order["quantity"] == 0:
-                out_.pop()
-            if order["quantity"] == 0 or out_order["quantity"] == 0:
-                self.publish_price(out_order["price"])
-        if order["quantity"] > 0:
-            in_.push(order)
+            while (
+                order["quantity"] > 0
+                and out_
+                and comparator(order["price"], out_[0]["price"])
+            ):
+                out_order = out_[0]  # can pop() for thread safe operations
+                trade_quantity = min(order["quantity"], out_order["quantity"])
+                print(
+                    f"Executed trade: {action} {trade_quantity} @ {out_order['price']} | "
+                    f"Left Order ID: {order['order_id']}, Right Order ID: {out_order['order_id']} | "
+                    f"Left Order Quantity: {order['quantity']}, Right Order Quantity: {out_order['quantity']} | "
+                    f"Trader Left Id : {order['trader_id']}, Trader Right Id : {out_order['trader_id']}"
+                )
+                self.publish_trade(
+                    trade_quantity,
+                    order["trader_id"],
+                    out_order["trader_id"],               
+                    order["order_id"],
+                    out_order["order_id"],
+                    order["quantity"],
+                    out_order["quantity"],
+                    out_order["price"],
+                )
+                order["quantity"] -= trade_quantity
+                out_order["quantity"] -= trade_quantity
+                if out_order["quantity"] == 0:
+                    out_.pop(0)
+                    continue
+                if order["quantity"] == 0 or out_order["quantity"] == 0:
+                    self.publish_price(out_order["price"])
+            if order["quantity"] > 0:
+                in_.push(order)
 
     def publish_trade(
         self,
-        trader_id: int,
+        trade_quantity: int,
+        trader_left_id: int,
+        trader_right_id: int,
         left_order_id: str,
         right_order_id: str,
-        quantity: int,
+        left_quantity: int,
+        right_quantity: int,
         price: int,
-        action: str,
     ):
-        status = "closed" if quantity == 0 else "partial"
+        left_status = "closed" if left_quantity == trade_quantity else "partial"
+        right_status = "closed" if right_quantity == trade_quantity else "partial"
         self.kafka_client.produce(
             self._ORDER_STATUS_TOPIC,
             bytes(
                 json.dumps(
                     {
-                        "trader_id": trader_id,
+                        "trader_left_id": trader_left_id,
+                        "trader_right_id": trader_right_id,
                         "left_order_id": left_order_id,
                         "right_order_id": right_order_id,
-                        "quantity": quantity,
+                        "left_quantity": left_quantity,
+                        "right_quantity": right_quantity,
                         "price": price,
-                        "action": action,
-                        "status": status,
+                        "left_status": left_status,
+                        "right_status": right_status,
                     }
                 ),
                 "utf-8",
@@ -106,7 +115,6 @@ class SimpleOrderBook:
     def publish_price(self, price):
         message = bytes(json.dumps({"last quote price": price}), "utf-8")
         self.kafka_client.produce(self._PRICE_TOPIC, message)
-        print(f"{self._PRICE_TOPIC}: last quote price '{price}'")
 
     def start(self):
         for msgs in self.kafka_client.consume(self._QUOTES_TOPIC):

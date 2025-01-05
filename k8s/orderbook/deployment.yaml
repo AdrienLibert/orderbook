@@ -29,6 +29,8 @@ spec:
           value: PLAINTEXT
         - name: OB__CONSUMER__OFFSET_RESET
           value: earliest
+        - name: OB__CONSUMER__ENABLE_AUTO_COMMIT
+          value: "false"
         - name: OB__CONSUMER__CONSUME_SIZE
           value: "32"
         - name: OB__CONSUMER__CONSUME_TIMEOUT
