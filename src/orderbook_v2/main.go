@@ -100,35 +100,33 @@ type Orderbook struct {
 	_quoteTopic string
 }
 
-func cut(i int, xs []*Order) (*Order, []*Order) {
-	y := xs[i]
-	ys := append(xs[:i], xs[i+1:]...)
-	return y, ys
+func cut(i int, xs *[]*Order) *Order {
+	y := (*xs)[i]
+	*xs = append((*xs)[:i], (*xs)[i+1:]...)
+	return y
 }
 
 func (o *Orderbook) Process(inOrder *Order) {
-	var in, out []*Order
+	var in, out *[]*Order
 	var action string
 	var comparator func(x, y float64) bool
 
 	if inOrder.Quantity > 0 {
-		in = o.bid
-		out = o.ask
+		in = &o.bid
+		out = &o.ask
 		action = "buy"
 		comparator = func(x, y float64) bool { return x >= y }
 	} else {
-		in = o.ask
-		out = o.bid
+		in = &o.ask
+		out = &o.bid
 		action = "sell"
 		inOrder.Quantity = -inOrder.Quantity
 		comparator = func(x, y float64) bool { return x <= y }
 	}
-	fmt.Println(inOrder.Quantity, len(out), inOrder.Price)
 
-	for inOrder.Quantity > 0 && len(out) > 0 && comparator(inOrder.Price, out[0].Price) {
-		var outOrder *Order
-		outOrder, out = cut(0, out)
-		fmt.Println(inOrder, outOrder)
+	for inOrder.Quantity > 0 && len(*out) > 0 && comparator(inOrder.Price, (*out)[0].Price) {
+		outOrder := cut(0, out)
+		fmt.Println(action, inOrder, outOrder)
 
 		tradeQuantity := math.Min(inOrder.Quantity, outOrder.Quantity)
 		fmt.Printf(
@@ -141,21 +139,18 @@ func (o *Orderbook) Process(inOrder *Order) {
 		inOrder.Quantity -= tradeQuantity
 		outOrder.Quantity -= tradeQuantity
 
+		// TODO: publish orderbook change
+
 		if outOrder.Quantity > 0 {
-			out = append(out, outOrder)
-			fmt.Println("adding to bid or ask:", outOrder)
-			sort.Slice(in, func(i, j int) bool { return in[i].Price > in[j].Price })
+			*out = append(*out, outOrder)
+			sort.Slice(*in, func(i, j int) bool { return (*in)[i].Price > (*in)[j].Price })
 		}
 	}
 
 	if inOrder.Quantity > 0 {
-		in = append(in, inOrder)
-		fmt.Println("adding to bid or ask:", inOrder)
-		sort.Slice(in, func(i, j int) bool { return in[i].Price > in[j].Price })
+		*in = append(*in, inOrder)
+		sort.Slice(*in, func(i, j int) bool { return (*in)[i].Price > (*in)[j].Price })
 	}
-
-	fmt.Println(len(in), in)
-	fmt.Println(len(out), out)
 }
 
 func (o *Orderbook) Start() {
