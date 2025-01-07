@@ -28,23 +28,40 @@ type Order struct {
 	Timestamp float64 `json:"timestamp"`
 }
 
+type Trade struct {
+	LeftOrderId  string  `json:"left_order_id"`
+	RightOrderId string  `json:"right_order_id"`
+	Quantity     float64 `json:"quantity"`
+	Action       string  `json:"action"`
+	Status       string  `json:"status"`
+}
+
 type KafkaClient struct {
-	config   *sarama.Config
-	consumer *sarama.Consumer
-	brokers  []string
+	consumer       *sarama.Consumer
+	producer       *sarama.AsyncProducer
+	commonConfig   *sarama.Config
+	consumerConfig *sarama.Config
+	producerConfig *sarama.Config
+	brokers        []string
 }
 
 func NewKafkaClient() *KafkaClient {
 	kc := new(KafkaClient)
 	kc.brokers = []string{getenv("OB__KAFKA__BOOTSTRAP_SERVERS", "localhost:9094")}
-	kc.config = sarama.NewConfig()
-	kc.config.ClientID = "go-orderbook-consumer"
-	kc.config.Consumer.Return.Errors = true
-	kc.config.Net.SASL.Enable = false
+	kc.commonConfig = sarama.NewConfig()
+	kc.commonConfig.ClientID = "go-orderbook-consumer"
+	kc.commonConfig.Net.SASL.Enable = false
 	if getenv("OB__KAFKA__SECURITY_PROTOCOL", "PLAINTEXT") == "PLAINTEXT" {
-		kc.config.Net.SASL.Mechanism = sarama.SASLTypePlaintext
+		kc.commonConfig.Net.SASL.Mechanism = sarama.SASLTypePlaintext
 	}
-	kc.config.Consumer.Offsets.Initial = sarama.OffsetNewest
+
+	kc.consumerConfig = sarama.NewConfig()
+	kc.consumerConfig.Consumer.Return.Errors = true
+	kc.consumerConfig.Consumer.Offsets.Initial = sarama.OffsetNewest
+
+	kc.producerConfig = sarama.NewConfig()
+	kc.producerConfig.Producer.Retry.Max = 5
+	kc.producerConfig.Producer.RequiredAcks = sarama.WaitForAll
 	return kc
 }
 
@@ -52,7 +69,8 @@ func (kc *KafkaClient) GetConsumer() *sarama.Consumer {
 	if kc.consumer != nil {
 		return kc.consumer
 	}
-	consumer, err := sarama.NewConsumer(kc.brokers, kc.config)
+	consumer, err := sarama.NewConsumer(kc.brokers, kc.consumerConfig)
+	kc.consumer = &consumer
 	if err != nil {
 		panic(err)
 	}
@@ -62,6 +80,23 @@ func (kc *KafkaClient) GetConsumer() *sarama.Consumer {
 		}
 	}()
 	return &consumer
+}
+
+func (kc *KafkaClient) GetProducer() *sarama.AsyncProducer {
+	if kc.producer != nil {
+		return kc.producer
+	}
+	producer, err := sarama.NewAsyncProducer(kc.brokers, kc.producerConfig)
+	kc.producer = &producer
+	if err != nil {
+		panic(err)
+	}
+	defer func() {
+		if err != nil {
+			panic(err)
+		}
+	}()
+	return &producer
 }
 
 func (kc *KafkaClient) Assign(master sarama.Consumer, topic string) (chan *sarama.ConsumerMessage, chan *sarama.ConsumerError) {
@@ -109,6 +144,7 @@ type Orderbook struct {
 	kafkaClient *KafkaClient
 
 	_quoteTopic string
+	_tradeTopic string
 }
 
 func cut(i int, xs *[]*Order) *Order {
@@ -117,7 +153,7 @@ func cut(i int, xs *[]*Order) *Order {
 	return y
 }
 
-func (o *Orderbook) Process(inOrder *Order) {
+func (o *Orderbook) Process(inOrder *Order, producerChannel chan<- Trade) {
 	var in, out *[]*Order
 	var action string
 	var comparator func(x, y float64) bool
@@ -168,33 +204,53 @@ func (o *Orderbook) Start() {
 	master := o.kafkaClient.GetConsumer()
 	consumer, errors := o.kafkaClient.Assign(*master, o._quoteTopic)
 
+	producer := o.kafkaClient.GetProducer()
+
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt)
 
-	msgCount := 0
-	doneCh := make(chan struct{})
+	consumedCount := 0
+	producedCount := 0
+
+	produceChannel := make(chan Trade)
+	go func(tradeMessage <-chan Trade) {
+		for {
+			select {
+			case msg := <-tradeMessage:
+				fmt.Println("New Message produced", msg)
+				producedCount++
+			case <-signals:
+				fmt.Println("Interrupt is detected")
+				(*producer).AsyncClose() // Trigger a shutdown of the producer.
+				produceChannel <- Trade{}
+			}
+			// message := &sarama.ProducerMessage{Topic: o._tradeTopic, Value: sarama.StringEncoder(msg)}
+		}
+	}(produceChannel)
+
+	consumeChannel := make(chan struct{})
 	go func() {
 		for {
 			select {
 			case msg := <-consumer:
-				msgCount++
+				consumedCount++
 				order, err := convertMessageToOrder(msg.Value)
 				if err != nil {
 					handleError(err)
 				}
-				o.Process(&order)
+				o.Process(&order, produceChannel)
 			case consumerError := <-errors:
-				msgCount++
+				consumedCount++
 				fmt.Println("Received consumerError:", string(consumerError.Topic), string(consumerError.Partition), consumerError.Err)
-				doneCh <- struct{}{}
+				consumeChannel <- struct{}{}
 			case <-signals:
 				fmt.Println("Interrupt is detected")
-				doneCh <- struct{}{}
+				consumeChannel <- struct{}{}
 			}
 		}
 	}()
-	<-doneCh
-	fmt.Println("Closing... processed", msgCount, "messages")
+	<-consumeChannel
+	fmt.Println("Closing... processed", consumedCount, "messages and produced", producedCount, "messages")
 }
 
 func NewOrderBook(bid []*Order, ask []*Order, kafkaClient *KafkaClient) *Orderbook {
@@ -203,6 +259,7 @@ func NewOrderBook(bid []*Order, ask []*Order, kafkaClient *KafkaClient) *Orderbo
 	o.ask = ask
 	o.kafkaClient = kafkaClient
 	o._quoteTopic = "orders.topic"
+	o._tradeTopic = "order.status.topic"
 	return o
 }
 
@@ -218,6 +275,14 @@ func convertMessageToOrder(messageValue []byte) (Order, error) {
 
 	return *order, nil
 }
+
+// func convertTradeToMessage(Trade) []byte {
+// 	return []byte{}
+// }
+//
+// func produceMessages(producer sarama.AsyncProducer, signals chan os.Signal, topic string, msg string) {
+//
+// }
 
 func main() {
 	fmt.Println("Starting orderbook")
