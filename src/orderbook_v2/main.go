@@ -11,6 +11,15 @@ import (
 	"github.com/IBM/sarama"
 )
 
+func getenv(key, fallback string) string {
+	// TODO: refactor through a configparser
+	value := os.Getenv(key)
+	if len(value) == 0 {
+		return fallback
+	}
+	return value
+}
+
 type Order struct {
 	OrderID   string  `json:"order_id"`
 	OrderType string  `json:"order_type"`
@@ -27,12 +36,14 @@ type KafkaClient struct {
 
 func NewKafkaClient() *KafkaClient {
 	kc := new(KafkaClient)
-	kc.brokers = []string{"localhost:9094"}
+	kc.brokers = []string{getenv("OB__KAFKA__BOOTSTRAP_SERVERS", "localhost:9094")}
 	kc.config = sarama.NewConfig()
 	kc.config.ClientID = "go-orderbook-consumer"
 	kc.config.Consumer.Return.Errors = true
 	kc.config.Net.SASL.Enable = false
-	kc.config.Net.SASL.Mechanism = sarama.SASLTypePlaintext
+	if getenv("OB__KAFKA__SECURITY_PROTOCOL", "PLAINTEXT") == "PLAINTEXT" {
+		kc.config.Net.SASL.Mechanism = sarama.SASLTypePlaintext
+	}
 	kc.config.Consumer.Offsets.Initial = sarama.OffsetNewest
 	return kc
 }
