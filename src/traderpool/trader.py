@@ -6,7 +6,7 @@ import json
 from datetime import datetime, timezone
 from drgn.kafka import KafkaClient
 
-market_max = 105
+market_max = 150
 
 # According AA strategy
 
@@ -74,7 +74,7 @@ class Trader:
         ) #EMA
 
         self.target_buy = calculate_target(
-            self.limit_price, self.equilibrium_price, self.aggressiveness_buy, self.theta, is_buy=True
+            self.limit_price, self.equilibrium_price, self.aggressiveness_buy, self.theta
         )
         self.target_sell = calculate_target(
             self.limit_price, self.equilibrium_price, self.aggressiveness_sell, self.theta, is_buy=False
@@ -92,8 +92,6 @@ class Trader:
         }
         print(msg)
         self.kafka_client.produce(self._QUOTES_TOPIC, bytes(json.dumps(msg),"utf-8"))
-        time.sleep(15)
-        self.consume_trade()
 
     def consume_last_price(self):
         for msgs in self.kafka_client.consume(self._PRICE_TOPIC):
@@ -105,9 +103,10 @@ class Trader:
             for msg in msgs:
                 while (msg["trader_left_id"] == self.trader_id and msg["left_status"] != "closed") or \
                 (msg["trader_right_id"] == self.trader_id and msg["right_status"] != "closed"):
-                    time.sleep(15)
-                self.quantity = -1 * random.randint(5,self.quantity) if self.quantity > 0 else random.randint(5,abs(self.quantity))
+                    time.sleep(5)
+                self.quantity = -1 * random.randint(5,20) if self.quantity > 0 else random.randint(5,20)
                 self.produce_order()
-
+            
     def start(self):
         self.produce_order()
+        self.consume_trade()

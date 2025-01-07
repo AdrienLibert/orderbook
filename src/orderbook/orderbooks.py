@@ -39,6 +39,7 @@ class SimpleOrderBook:
 
     def match(self, order: dict):
         if any(o["order_id"] == order["order_id"] for o in self.bid + self.ask): # Change
+            print("nn")
             return
         with self.lock:
             in_, out_, action, comparator, order["quantity"] = (

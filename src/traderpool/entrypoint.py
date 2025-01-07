@@ -1,9 +1,9 @@
 from drgn.env import config_from_env
 
 if __name__ == "__main__":
-    print("Running entrypoint of orderbook")
+    print("Running entrypoint of traderpool")
     config_from_env()
 
-    from main import start_multiple_traders
+    from main import start
 
-    start_multiple_traders(25)
+    start()
