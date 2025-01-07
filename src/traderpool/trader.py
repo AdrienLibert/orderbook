@@ -6,7 +6,7 @@ import json
 from datetime import datetime, timezone
 from drgn.kafka import KafkaClient
 
-market_max = 150
+market_max = 120
 
 # According AA strategy
 

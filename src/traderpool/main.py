@@ -13,7 +13,7 @@ def start():
         def trader_task(index, action):
             trader = Trader(
                 trader_id=index,
-                limit_price=random.randint(95, 105),
+                limit_price=random.randint(90, 110),
                 quantity=random.randint(5, 20) * action,
                 kafka_client=KafkaClient()
             )
