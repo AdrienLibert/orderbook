@@ -29,11 +29,11 @@ type Order struct {
 }
 
 type Trade struct {
-	LeftOrderId  string  `json:"left_order_id"`
-	RightOrderId string  `json:"right_order_id"`
-	Quantity     float64 `json:"quantity"`
-	Action       string  `json:"action"`
-	Status       string  `json:"status"`
+	OrderId  string  `json:"left_order_id"`
+	Quantity float64 `json:"quantity"`
+	Price    float64 `json:"price"`
+	Action   string  `json:"action"`
+	Status   string  `json:"status"`
 }
 
 type KafkaClient struct {
@@ -176,10 +176,11 @@ func (o *Orderbook) Process(inOrder *Order, producerChannel chan<- Trade) {
 		fmt.Println(action, inOrder, outOrder)
 
 		tradeQuantity := math.Min(inOrder.Quantity, outOrder.Quantity)
+		price := outOrder.Price
 		fmt.Printf(
 			"Executed trade: %s %f @ %f | Left Order ID: %s, Right Order ID: %s | "+
 				"Left Order Quantity: %f, Right Order Quantity: %f\n",
-			action, tradeQuantity, outOrder.Price, inOrder.OrderID, outOrder.OrderID,
+			action, tradeQuantity, price, inOrder.OrderID, outOrder.OrderID,
 			inOrder.Quantity, outOrder.Quantity,
 		)
 
@@ -187,6 +188,8 @@ func (o *Orderbook) Process(inOrder *Order, producerChannel chan<- Trade) {
 		outOrder.Quantity -= tradeQuantity
 
 		// TODO: publish orderbook change
+		producerChannel <- publishTrade(inOrder, tradeQuantity, price, action)
+		producerChannel <- publishTrade(outOrder, tradeQuantity, price, action)
 
 		if outOrder.Quantity > 0 {
 			*out = append(*out, outOrder)
@@ -217,10 +220,11 @@ func (o *Orderbook) Start() {
 		for {
 			select {
 			case msg := <-tradeMessage:
-				fmt.Println("New Message produced", msg)
+				traderMessage := sarama.ProducerMessage{Topic: o._tradeTopic, Value: sarama.StringEncoder(convertTradeToMessage(msg))}
+				(*producer).Input() <- &traderMessage
 				producedCount++
 			case <-signals:
-				fmt.Println("Interrupt is detected")
+				fmt.Println("Interrupt is detected... Closing trade producer...")
 				(*producer).AsyncClose() // Trigger a shutdown of the producer.
 				produceChannel <- Trade{}
 			}
@@ -244,7 +248,7 @@ func (o *Orderbook) Start() {
 				fmt.Println("Received consumerError:", string(consumerError.Topic), string(consumerError.Partition), consumerError.Err)
 				consumeChannel <- struct{}{}
 			case <-signals:
-				fmt.Println("Interrupt is detected")
+				fmt.Println("Interrupt is detected... Closing order consummer...")
 				consumeChannel <- struct{}{}
 			}
 		}
@@ -276,13 +280,33 @@ func convertMessageToOrder(messageValue []byte) (Order, error) {
 	return *order, nil
 }
 
-// func convertTradeToMessage(Trade) []byte {
-// 	return []byte{}
-// }
-//
-// func produceMessages(producer sarama.AsyncProducer, signals chan os.Signal, topic string, msg string) {
-//
-// }
+func publishTrade(inOrder *Order, tradeQuantity float64, price float64, action string) Trade {
+	var status string
+
+	if inOrder.Quantity == 0 {
+		status = "closed"
+	} else {
+		status = "partial"
+	}
+
+	trade := Trade{
+		OrderId:  inOrder.OrderID,
+		Quantity: tradeQuantity,
+		Price:    price,
+		Action:   action,
+		Status:   status,
+	}
+
+	return trade
+}
+
+func convertTradeToMessage(trade Trade) []byte {
+	message, err := json.Marshal(trade)
+	if err != nil {
+		fmt.Println("invalid trade being converted to message:", err)
+	}
+	return message
+}
 
 func main() {
 	fmt.Println("Starting orderbook")
