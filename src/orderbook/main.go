@@ -11,6 +11,14 @@ import (
 	"github.com/IBM/sarama"
 )
 
+// utils
+
+func cut(i int, xs *[]*Order) *Order {
+	y := (*xs)[i]
+	*xs = append((*xs)[:i], (*xs)[i+1:]...)
+	return y
+}
+
 func getenv(key, fallback string) string {
 	// TODO: refactor through a configparser
 	value := os.Getenv(key)
@@ -20,6 +28,7 @@ func getenv(key, fallback string) string {
 	return value
 }
 
+// TODO: move to models file
 type Order struct {
 	OrderID   string  `json:"order_id"`
 	OrderType string  `json:"order_type"`
@@ -29,16 +38,18 @@ type Order struct {
 }
 
 type Trade struct {
-	OrderId  string  `json:"left_order_id"`
+	OrderId  string  `json:"order_id"`
 	Quantity float64 `json:"quantity"`
 	Price    float64 `json:"price"`
 	Action   string  `json:"action"`
 	Status   string  `json:"status"`
 }
 
+type PricePoint struct {
+	Price float64 `json:"price"`
+}
+
 type KafkaClient struct {
-	consumer       *sarama.Consumer
-	producer       *sarama.AsyncProducer
 	commonConfig   *sarama.Config
 	consumerConfig *sarama.Config
 	producerConfig *sarama.Config
@@ -62,15 +73,14 @@ func NewKafkaClient() *KafkaClient {
 	kc.producerConfig = sarama.NewConfig()
 	kc.producerConfig.Producer.Retry.Max = 5
 	kc.producerConfig.Producer.RequiredAcks = sarama.WaitForAll
+	kc.producerConfig.Producer.Idempotent = true
+	kc.producerConfig.Net.MaxOpenRequests = 1
+	kc.producerConfig.Producer.Return.Successes = true
 	return kc
 }
 
 func (kc *KafkaClient) GetConsumer() *sarama.Consumer {
-	if kc.consumer != nil {
-		return kc.consumer
-	}
 	consumer, err := sarama.NewConsumer(kc.brokers, kc.consumerConfig)
-	kc.consumer = &consumer
 	if err != nil {
 		panic(err)
 	}
@@ -82,12 +92,8 @@ func (kc *KafkaClient) GetConsumer() *sarama.Consumer {
 	return &consumer
 }
 
-func (kc *KafkaClient) GetProducer() *sarama.AsyncProducer {
-	if kc.producer != nil {
-		return kc.producer
-	}
-	producer, err := sarama.NewAsyncProducer(kc.brokers, kc.producerConfig)
-	kc.producer = &producer
+func (kc *KafkaClient) GetProducer() *sarama.SyncProducer {
+	producer, err := sarama.NewSyncProducer(kc.brokers, kc.producerConfig)
 	if err != nil {
 		panic(err)
 	}
@@ -105,30 +111,29 @@ func (kc *KafkaClient) Assign(master sarama.Consumer, topic string) (chan *saram
 	errors := make(chan *sarama.ConsumerError)
 
 	partitions, _ := master.Partitions(topic)
-	// debuging here
 	topics, err := master.Topics()
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("Topics: ", topics)
+	fmt.Println("DEBUG: topics: ", topics)
 	consumer, err := master.ConsumePartition(
 		topic,
-		partitions[0], // only first partition for now
+		partitions[0], // TODO: only first partition for now
 		sarama.OffsetOldest,
 	)
 
 	if err != nil {
-		fmt.Printf("Topic %v Partitions %v", topic, partitions)
+		fmt.Printf("ERROR: topic %v partitions %v", topic, partitions)
 		panic(err)
 	}
-	fmt.Println("Start consuming topic: ", topic)
+	fmt.Println("INFO: start consuming topic: ", topic)
 
 	go func(topic string, consumer sarama.PartitionConsumer) {
 		for {
 			select {
 			case consumerError := <-consumer.Errors():
 				errors <- consumerError
-				fmt.Println("consumerError: ", consumerError.Err)
+				fmt.Println("ERROR: not able to consume: ", consumerError.Err)
 			case msg := <-consumer.Messages():
 				consumers <- msg
 			}
@@ -143,17 +148,23 @@ type Orderbook struct {
 	ask         []*Order
 	kafkaClient *KafkaClient
 
-	_quoteTopic string
-	_tradeTopic string
+	_quoteTopic      string
+	_tradeTopic      string
+	_pricePointTopic string
 }
 
-func cut(i int, xs *[]*Order) *Order {
-	y := (*xs)[i]
-	*xs = append((*xs)[:i], (*xs)[i+1:]...)
-	return y
+func NewOrderBook(bid []*Order, ask []*Order, kafkaClient *KafkaClient) *Orderbook {
+	o := new(Orderbook)
+	o.bid = bid
+	o.ask = ask
+	o.kafkaClient = kafkaClient
+	o._quoteTopic = "orders.topic"
+	o._tradeTopic = "order.status.topic"
+	o._pricePointTopic = "order.last_price.topic"
+	return o
 }
 
-func (o *Orderbook) Process(inOrder *Order, producerChannel chan<- Trade) {
+func (o *Orderbook) Process(inOrder *Order, producerChannel chan<- Trade, pricePointChannel chan<- PricePoint) {
 	var in, out *[]*Order
 	var action string
 	var comparator func(x, y float64) bool
@@ -178,7 +189,7 @@ func (o *Orderbook) Process(inOrder *Order, producerChannel chan<- Trade) {
 		tradeQuantity := math.Min(inOrder.Quantity, outOrder.Quantity)
 		price := outOrder.Price
 		fmt.Printf(
-			"Executed trade: %s %f @ %f | Left Order ID: %s, Right Order ID: %s | "+
+			"INFO: Executed trade: %s %f @ %f | Left Order ID: %s, Right Order ID: %s | "+
 				"Left Order Quantity: %f, Right Order Quantity: %f\n",
 			action, tradeQuantity, price, inOrder.OrderID, outOrder.OrderID,
 			inOrder.Quantity, outOrder.Quantity,
@@ -187,9 +198,9 @@ func (o *Orderbook) Process(inOrder *Order, producerChannel chan<- Trade) {
 		inOrder.Quantity -= tradeQuantity
 		outOrder.Quantity -= tradeQuantity
 
-		// TODO: publish orderbook change
 		producerChannel <- publishTrade(inOrder, tradeQuantity, price, action)
 		producerChannel <- publishTrade(outOrder, tradeQuantity, price, action)
+		pricePointChannel <- publishPricePoint(price)
 
 		if outOrder.Quantity > 0 {
 			*out = append(*out, outOrder)
@@ -207,7 +218,8 @@ func (o *Orderbook) Start() {
 	master := o.kafkaClient.GetConsumer()
 	consumer, errors := o.kafkaClient.Assign(*master, o._quoteTopic)
 
-	producer := o.kafkaClient.GetProducer()
+	tradeProducer := o.kafkaClient.GetProducer()
+	pricePointProducer := o.kafkaClient.GetProducer()
 
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt)
@@ -215,60 +227,77 @@ func (o *Orderbook) Start() {
 	consumedCount := 0
 	producedCount := 0
 
-	produceChannel := make(chan Trade)
+	traderChannel := make(chan Trade)
 	go func(tradeMessage <-chan Trade) {
 		for {
 			select {
 			case msg := <-tradeMessage:
-				traderMessage := sarama.ProducerMessage{Topic: o._tradeTopic, Value: sarama.StringEncoder(convertTradeToMessage(msg))}
-				(*producer).Input() <- &traderMessage
-				producedCount++
+				producerMessage := sarama.ProducerMessage{Topic: o._tradeTopic, Value: sarama.StringEncoder(convertTradeToMessage(msg))}
+				par, off, err := (*tradeProducer).SendMessage(&producerMessage)
+				if err != nil {
+					fmt.Printf("ERROR: producing trade in partition %d, offset %d: %s", par, off, err)
+				} else {
+					fmt.Println("INFO: produced trade:", producerMessage)
+					producedCount++
+				}
 			case <-signals:
-				fmt.Println("Interrupt is detected... Closing trade producer...")
-				(*producer).AsyncClose() // Trigger a shutdown of the producer.
-				produceChannel <- Trade{}
+				fmt.Println("INFO: interrupt is detected... closing trade producer...")
+				(*tradeProducer).Close()
+				traderChannel <- Trade{}
 			}
-			// message := &sarama.ProducerMessage{Topic: o._tradeTopic, Value: sarama.StringEncoder(msg)}
 		}
-	}(produceChannel)
+	}(traderChannel)
+
+	pricePointChannel := make(chan PricePoint)
+	go func(pricePointMessage <-chan PricePoint) {
+		for {
+			select {
+			case msg := <-pricePointMessage:
+				producerMessage := sarama.ProducerMessage{Topic: o._pricePointTopic, Value: sarama.StringEncoder(convertPricePointToMessage(msg))}
+				par, off, err := (*pricePointProducer).SendMessage(&producerMessage)
+				if err != nil {
+					fmt.Printf("ERROR: producing price point in partition %d, offset %d: %s", par, off, err)
+				} else {
+					fmt.Println("INFO: produced price point:", producerMessage)
+					producedCount++
+				}
+			case <-signals:
+				fmt.Println("INFO: interrupt is detected... closing price point producer...")
+				(*pricePointProducer).Close()
+				pricePointChannel <- PricePoint{}
+			}
+		}
+	}(pricePointChannel)
 
 	consumeChannel := make(chan struct{})
 	go func() {
 		for {
 			select {
 			case msg := <-consumer:
-				consumedCount++
 				order, err := convertMessageToOrder(msg.Value)
 				if err != nil {
 					handleError(err)
+				} else {
+					fmt.Println("DEBUG: received quote:", order)
+					consumedCount++
 				}
-				o.Process(&order, produceChannel)
+				o.Process(&order, traderChannel, pricePointChannel)
 			case consumerError := <-errors:
 				consumedCount++
-				fmt.Println("Received consumerError:", string(consumerError.Topic), string(consumerError.Partition), consumerError.Err)
+				fmt.Println("ERROR: received consumerError:", string(consumerError.Topic), string(consumerError.Partition), consumerError.Err)
 				consumeChannel <- struct{}{}
 			case <-signals:
-				fmt.Println("Interrupt is detected... Closing order consummer...")
+				fmt.Println("INFO: interrupt is detected... Closing quote consummer...")
 				consumeChannel <- struct{}{}
 			}
 		}
 	}()
 	<-consumeChannel
-	fmt.Println("Closing... processed", consumedCount, "messages and produced", producedCount, "messages")
-}
-
-func NewOrderBook(bid []*Order, ask []*Order, kafkaClient *KafkaClient) *Orderbook {
-	o := new(Orderbook)
-	o.bid = bid
-	o.ask = ask
-	o.kafkaClient = kafkaClient
-	o._quoteTopic = "orders.topic"
-	o._tradeTopic = "order.status.topic"
-	return o
+	fmt.Println("INFO: closing... processed", consumedCount, "messages and produced", producedCount, "messages")
 }
 
 func handleError(err error) {
-	fmt.Println("invalid message consummed:", err)
+	fmt.Println("ERROR: invalid message consummed:", err)
 }
 
 func convertMessageToOrder(messageValue []byte) (Order, error) {
@@ -300,16 +329,30 @@ func publishTrade(inOrder *Order, tradeQuantity float64, price float64, action s
 	return trade
 }
 
+func publishPricePoint(price float64) PricePoint {
+	return PricePoint{
+		Price: price,
+	}
+}
+
 func convertTradeToMessage(trade Trade) []byte {
 	message, err := json.Marshal(trade)
 	if err != nil {
-		fmt.Println("invalid trade being converted to message:", err)
+		fmt.Println("ERROR: invalid trade being converted to message:", err)
+	}
+	return message
+}
+
+func convertPricePointToMessage(princePoint PricePoint) []byte {
+	message, err := json.Marshal(princePoint)
+	if err != nil {
+		fmt.Println("ERROR: invalid price point being converted to message:", err)
 	}
 	return message
 }
 
 func main() {
-	fmt.Println("Starting orderbook")
+	fmt.Println("INFO: tarting orderbook")
 	o := NewOrderBook(
 		[]*Order{},
 		[]*Order{},
