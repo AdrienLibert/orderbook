@@ -9,7 +9,6 @@ kafka_config = {
     "security.protocol": env_config["kafka"]["security_protocol"],
 }
 
-
 class KafkaClient:
     def __init__(self, group_id: str = __file__):
         self._consumer_config = kafka_config | {
@@ -41,6 +40,9 @@ class KafkaClient:
         self._consumer_config["auto.offset.reset"] = env_config["consumer"][
             "offset_reset"
         ]
+        self._consumer_config["enable.auto.commit"] = env_config["consumer"][
+            "enable_auto_commit"
+        ]
         self.consumer.assign([self._get_topic_partition(topic)])
         consume_size = int(env_config["consumer"]["consume_size"])
         consume_timeout = float(env_config["consumer"]["consume_timeout"])
@@ -48,15 +50,17 @@ class KafkaClient:
         messages = []
         while True:
             msgs = self.consumer.consume(consume_size, timeout=consume_timeout)
-            msg_size = len(msgs)
+            if not msgs:
+                continue
 
-            if msg_size > 0:
-                for msg in msgs:
-                    if msg.error():
-                        if msg.error().code() == KafkaError._PARTITION_EOF:
-                            continue
-                        else:
-                            print(f"ERROR - KafkaException - {msg.error()}")
+            messages = []
+            for msg in msgs:
+                if msg.error():
+                    if msg.error().code() == KafkaError._PARTITION_EOF:
+                        continue 
+                    else:
+                        print(f"ERROR - KafkaException - {msg.error()}")
+                else:
                     messages.append(json.loads(msg.value().decode("utf-8")))
 
                 yield messages
