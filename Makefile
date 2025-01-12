@@ -31,7 +31,7 @@ forward_kafka:
 stop_kafka:
 	helm uninstall --ignore-not-found bitnami -n orderbook
 	kubectl delete --ignore-not-found -f k8s/kafka_init/
-	kubectl delete --ignore-not-found pvc data-bitnami-kafka-controller-0 -n orderbookm
+	kubectl delete --ignore-not-found pvc data-bitnami-kafka-controller-0 -n orderbook
 
 
 start_kafkainit:
