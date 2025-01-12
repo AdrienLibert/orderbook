@@ -3,12 +3,12 @@
 from confluent_kafka import Consumer, TopicPartition, KafkaError
 
 from drgn.kafka import kafka_config
-import time
 import uuid
+import argparse
 
 
 # defined in topics_config.yaml. if changed, need to rebuild the image.
-TOPIC = "orders.topic"
+TOPIC = "order.status.topic"
 
 
 def commit(err: KafkaError, topics: list[TopicPartition]):
@@ -25,7 +25,6 @@ def commit(err: KafkaError, topics: list[TopicPartition]):
 def consume_orders(consumer: Consumer):
     while True:
         msgs = consumer.consume()
-
         if len(msgs) > 0:
             for msg in msgs:
                 if msg.error():
@@ -39,11 +38,17 @@ def consume_orders(consumer: Consumer):
                     consumer.commit(message=msg)
         else:
             print("no message")
-        time.sleep(0.5)
 
 
 if __name__ == "__main__":
-    # init thread level
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--topic", dest="topic")
+    parser.add_argument("--offset", dest="offset")
+    args = parser.parse_args()
+
+    topic = args.topic or TOPIC
+    offset = args.offset or 0
+    print(f"INFO: topic {topic} offset {offset}")
     consumer = Consumer(
         kafka_config
         | {
@@ -51,8 +56,9 @@ if __name__ == "__main__":
             "on_commit": commit,
             "enable.auto.commit": False,
             "enable.partition.eof": True,
+            "auto.offset.reset": "earliest",
         }
     )
-    consumer.assign([TopicPartition(TOPIC, 0, -1)])
+    consumer.assign([TopicPartition(topic, 0, int(offset))])
 
     consume_orders(consumer)

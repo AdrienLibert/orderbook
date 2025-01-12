@@ -21,21 +21,7 @@ spec:
         image: local/orderbook:latest
         imagePullPolicy: IfNotPresent
         env:
-        - name: OB__KAFKA__TOPICS_CONFIG
-          value: /app/topics_config.yaml
         - name: OB__KAFKA__BOOTSTRAP_SERVERS
           value: bitnami-kafka:9092
         - name: OB__KAFKA__SECURITY_PROTOCOL
           value: PLAINTEXT
-        - name: OB__CONSUMER__OFFSET_RESET
-          value: earliest
-        - name: OB__CONSUMER__ENABLE_AUTO_COMMIT
-          value: "false"
-        - name: OB__CONSUMER__CONSUME_SIZE
-          value: "32"
-        - name: OB__CONSUMER__CONSUME_TIMEOUT
-          value: "0.5"
-        - name: CONFIG_PATH
-          value: /app/task.conf
-        - name: PYTHONUNBUFFERED
-          value: "1"
