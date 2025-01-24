@@ -1,5 +1,10 @@
 package main
 
+type Heap interface {
+	Push(x interface{})
+	Pop() interface{}
+}
+
 type MinHeap []float64
 
 func (h MinHeap) Len() int { return len(h) }
@@ -40,8 +45,8 @@ type Orderbook struct {
 	BestBid           *MaxHeap
 	BestAsk           *MinHeap
 	PriceToVolume     map[float64]float64
-	PriceToSellOrders map[float64]Order
-	PriceToBuyOrders  map[float64]Order
+	PriceToSellOrders map[float64][]*Order
+	PriceToBuyOrders  map[float64][]*Order
 }
 
 func NewOrderBook() *Orderbook {
