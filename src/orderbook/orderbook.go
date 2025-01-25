@@ -3,6 +3,7 @@ package main
 type Heap interface {
 	Push(x interface{})
 	Pop() interface{}
+	Peak() interface{}
 }
 
 type MinHeap []float64
@@ -23,6 +24,14 @@ func (h *MinHeap) Pop() interface{} {
 	return x
 }
 
+func (h *MinHeap) Peak() interface{} {
+	n := len(*h)
+	if n == 0 {
+		return nil
+	}
+	return (*h)[0]
+}
+
 type MaxHeap []float64
 
 func (h MaxHeap) Len() int { return len(h) }
@@ -39,6 +48,14 @@ func (h *MaxHeap) Pop() interface{} {
 	x := old[n-1]
 	*h = old[0 : n-1]
 	return x
+}
+
+func (h *MaxHeap) Peak() interface{} {
+	n := len(*h)
+	if n == 0 {
+		return nil
+	}
+	return (*h)[0]
 }
 
 type Orderbook struct {

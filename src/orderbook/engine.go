@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"os/signal"
 
@@ -87,7 +88,7 @@ func (me *MatchingEngine) Start() {
 			case msg := <-orderMessages:
 				order, err := messageToOrder(msg.Value)
 				if err != nil {
-					handleError(err)
+					fmt.Println("ERROR: malformed message:", msg.Value)
 				} else {
 					fmt.Println("DEBUG: received quote:", order)
 					consumedCount++
@@ -110,69 +111,60 @@ func (me *MatchingEngine) Start() {
 func (me *MatchingEngine) Process(inOrder *Order, producerChannel chan<- Trade, pricePointChannel chan<- PricePoint) {
 	var currentBook *map[float64][]*Order
 	var oppositeBook *map[float64][]*Order
-	var currentBestPriceHeap Heap
-	var oppositeBestPriceHeap Heap
-	var oppositeBestPrice float64
+	var currentBestPrice Heap
+	var oppositeBestPrice Heap
 	var action string
 	var comparator func(x, y float64) bool
 
 	if inOrder.Quantity > 0 {
 		currentBook = &me.orderBook.PriceToBuyOrders
 		oppositeBook = &me.orderBook.PriceToSellOrders
-		currentBestPriceHeap = me.orderBook.BestBid
-		oppositeBestPriceHeap = me.orderBook.BestAsk
-		oppositeBestPrice = oppositeBestPriceHeap.Pop().(float64)
+		currentBestPrice = me.orderBook.BestBid
+		oppositeBestPrice = me.orderBook.BestAsk
 		action = "buy"
 		comparator = func(x, y float64) bool { return x >= y }
 	} else {
 		currentBook = &me.orderBook.PriceToSellOrders
 		oppositeBook = &me.orderBook.PriceToBuyOrders
-		currentBestPriceHeap = me.orderBook.BestAsk
-		oppositeBestPriceHeap = me.orderBook.BestBid
-		oppositeBestPrice = oppositeBestPriceHeap.Pop().(float64)
+		currentBestPrice = me.orderBook.BestAsk
+		oppositeBestPrice = me.orderBook.BestBid
 		action = "sell"
 		inOrder.Quantity = -inOrder.Quantity
 		comparator = func(x, y float64) bool { return x <= y }
 	}
 	inPrice := inOrder.Price
 
-	for inOrder.Quantity > 0 && len(*oppositeBook) > 0 && comparator(inOrder.Price, oppositeBestPrice) {
-		// do something
-		fmt.Println(action)
+	for inOrder.Quantity > 0 && comparator(inOrder.Price, oppositeBestPrice.Peak().(float64)) {
+		oppositeBestPriceQueue := (*oppositeBook)[oppositeBestPrice.Peak().(float64)]
+		for inOrder.Quantity > 0 && len(oppositeBestPriceQueue) > 0 {
+			outOrder := cut(0, &oppositeBestPriceQueue)
+			tradeQuantity := math.Min(inOrder.Quantity, outOrder.Quantity)
+			price := outOrder.Price
+			fmt.Printf(
+				"INFO: Executed trade: %s %f @ %f | Left Order ID: %s, Right Order ID: %s | "+
+					"Left Order Quantity: %f, Right Order Quantity: %f\n",
+				action, tradeQuantity, price, inOrder.OrderID, outOrder.OrderID,
+				inOrder.Quantity, outOrder.Quantity,
+			)
+
+			inOrder.Quantity -= tradeQuantity
+			outOrder.Quantity -= tradeQuantity
+
+			producerChannel <- createTrade(inOrder, tradeQuantity, price, action)
+			producerChannel <- createTrade(outOrder, tradeQuantity, price, action)
+			pricePointChannel <- createPricePoint(price)
+
+			if outOrder.Quantity > 0 {
+				oppositeBestPriceQueue = append([]*Order{outOrder}, oppositeBestPriceQueue...)
+			}
+		}
+
+		if len(oppositeBestPriceQueue) == 0 {
+			oppositeBestPrice.Pop()
+		}
 	}
 	if inOrder.Quantity > 0 {
-		currentBestPriceHeap.Push(inPrice)
+		currentBestPrice.Push(inPrice)
 		(*currentBook)[inPrice] = append((*currentBook)[inPrice], inOrder)
 	}
-	//
-	//for inOrder.Quantity > 0 && len(*oppositeBook) > 0 && comparator(inOrder.Price, (*oppositeBook)[0].Price) {
-	//	outOrder := cut(0, oppositeBook)
-	//	fmt.Println(action, inOrder, outOrder)
-	//
-	//	tradeQuantity := math.Min(inOrder.Quantity, outOrder.Quantity)
-	//	price := outOrder.Price
-	//	fmt.Printf(
-	//		"INFO: Executed trade: %s %f @ %f | Left Order ID: %s, Right Order ID: %s | "+
-	//			"Left Order Quantity: %f, Right Order Quantity: %f\n",
-	//		action, tradeQuantity, price, inOrder.OrderID, outOrder.OrderID,
-	//		inOrder.Quantity, outOrder.Quantity,
-	//	)
-	//
-	//	inOrder.Quantity -= tradeQuantity
-	//	outOrder.Quantity -= tradeQuantity
-	//
-	//	producerChannel <- publishTrade(inOrder, tradeQuantity, price, action)
-	//	producerChannel <- publishTrade(outOrder, tradeQuantity, price, action)
-	//	pricePointChannel <- publishPricePoint(price)
-	//
-	//	if outOrder.Quantity > 0 {
-	//		*out = append(*out, outOrder)
-	//		sort.Slice(*in, func(i, j int) bool { return (*in)[i].Price > (*in)[j].Price })
-	//	}
-	//}
-	//
-	//if inOrder.Quantity > 0 {
-	//	*in = append(*in, inOrder)
-	//	sort.Slice(*in, func(i, j int) bool { return (*in)[i].Price > (*in)[j].Price })
-	//}
 }

@@ -48,3 +48,29 @@ func messageToOrder(messageValue []byte) (Order, error) {
 	}
 	return *order, nil
 }
+
+func createTrade(inOrder *Order, tradeQuantity float64, price float64, action string) Trade {
+	var status string
+
+	if inOrder.Quantity == 0 {
+		status = "closed"
+	} else {
+		status = "partial"
+	}
+
+	trade := Trade{
+		OrderId:  inOrder.OrderID,
+		Quantity: tradeQuantity,
+		Price:    price,
+		Action:   action,
+		Status:   status,
+	}
+
+	return trade
+}
+
+func createPricePoint(price float64) PricePoint {
+	return PricePoint{
+		Price: price,
+	}
+}

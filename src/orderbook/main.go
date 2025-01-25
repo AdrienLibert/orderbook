@@ -21,38 +21,6 @@ func getenv(key, fallback string) string {
 	return value
 }
 
-// TODO: move to models file
-
-func handleError(err error) {
-	fmt.Println("ERROR: invalid message consummed:", err)
-}
-
-func publishTrade(inOrder *Order, tradeQuantity float64, price float64, action string) Trade {
-	var status string
-
-	if inOrder.Quantity == 0 {
-		status = "closed"
-	} else {
-		status = "partial"
-	}
-
-	trade := Trade{
-		OrderId:  inOrder.OrderID,
-		Quantity: tradeQuantity,
-		Price:    price,
-		Action:   action,
-		Status:   status,
-	}
-
-	return trade
-}
-
-func publishPricePoint(price float64) PricePoint {
-	return PricePoint{
-		Price: price,
-	}
-}
-
 func main() {
 	fmt.Println("INFO: tarting orderbook")
 	me := NewMatchingEngine(
