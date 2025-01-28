@@ -10,12 +10,13 @@ import (
 	"sort"
 	"time"
 	"sync"
+	"strconv"
 
 	"github.com/IBM/sarama"
 	"github.com/google/uuid"
 )
 
-var marketMax = 150
+var marketMax = 150.00
 
 type Order struct {
 	TraderID  string  `json:"trader_id"`
@@ -133,17 +134,17 @@ func (kc *KafkaClient) Assign(master sarama.Consumer, topic string) (chan *saram
 }
 
 type Trader struct {
-	trader_id			int
-	limit_price			int
-	quantity			int
+	trader_id			string
+	limit_price			float64
+	quantity			float64
 	n_last_trades		int
-	ema_param 			float
+	ema_param 			float64
 	max_newton_iter		int
-	max_newton_error	int
-	equilibrium_price	int
-	theta 				float
-	aggressiveness_buy 	float
-	aggressiveness_sell float
+	max_newton_error	float64
+	equilibrium_price	float64
+	theta 				float64
+	aggressiveness_buy 	float64
+	aggressiveness_sell float64
 	targetBuy  			float64
     targetSell 			float64
 
@@ -154,7 +155,7 @@ type Trader struct {
 	_pricePointTopic 	string
 }
 
-func NewTrader(trader_id int, limit_price int, quantity int, kafkaClient *KafkaClient) *Trader {
+func NewTrader(trader_id string, limit_price float64, quantity float64, kafkaClient *KafkaClient) *Trader {
 	t := new(Trader)
 	t.trader_id = trader_id
 	t.limit_price = limit_price
@@ -162,7 +163,7 @@ func NewTrader(trader_id int, limit_price int, quantity int, kafkaClient *KafkaC
 	t.kafkaClient = kafkaClient
 
 	t.n_last_trades = 5
-	t.ema_param = 2 / float(t.n_last_trades + 1)
+	t.ema_param = 2 / float64(t.n_last_trades + 1)
 	t.max_newton_iter = 10
 	t.max_newton_error = 0.0001
 	t.equilibrium_price = 0
@@ -206,47 +207,47 @@ func (t *Trader) newtonMethod(theta_est float64) float64 {
 	return theta_est
 }
 
-func (t *Trader) calculateTarget(limitPrice, equilibriumPrice, aggressiveness, theta float64, isBuy bool) float64 {
+func (t *Trader) calculateTarget(limit_price float64, equilibrium_price float64, aggressiveness, theta float64, isBuy bool) float64 {
 	var factor float64
-	if limitPrice < equilibriumPrice {
+	if limit_price < equilibrium_price {
 		if aggressiveness >= 0 {
-			return limitPrice
+			return limit_price
 		} else {
 			factor = (math.Exp(-aggressiveness*theta) - 1) / (math.Exp(theta) - 1)
 			if isBuy {
-				return limitPrice * (1 - factor)
+				return limit_price * (1 - factor)
 			} else {
-				return limitPrice + (t.marketMax-limitPrice)*factor
-				}
+				return limit_price + (marketMax-limit_price)*factor
 			}
+		}
 	} else {
 		if aggressiveness >= 0 {
 			factor = (math.Exp(aggressiveness*theta) - 1) / (math.Exp(theta) - 1)
 			if isBuy {
-				return equilibriumPrice + (limitPrice-equilibriumPrice)*factor
+				return equilibrium_price + (limit_price-equilibrium_price)*factor
 			} else {
-				return limitPrice + (equilibriumPrice-limitPrice)*(1-factor)
-				}
+				return limit_price + (equilibrium_price-limit_price)*(1-factor)
+			}
 		} else {
-			thetaEst := t.newtonMethod()
+			thetaEst := t.newtonMethod(t.theta)
 			factor = (math.Exp(-aggressiveness*thetaEst) - 1) / (math.Exp(thetaEst) - 1)
 			if isBuy {
-				return equilibriumPrice * (1 - factor)
+				return equilibrium_price * (1 - factor)
 			} else {
-				return equilibriumPrice + (t.marketMax-equilibriumPrice)*factor
+				return equilibrium_price + (marketMax-equilibrium_price)*factor
 			}
 		}
 	}
 }
 
 func (t *Trader) updateTargetPrices() {
-	if t.equilibriumPrice == 0 {
-		t.equilibriumPrice = t.limitPrice
+	if t.equilibrium_price == 0 {
+		t.equilibrium_price = t.limit_price
 	} else {
-		t.equilibriumPrice = t.emaParam*t.limitPrice + (1-t.emaParam)*t.equilibriumPrice
+		t.equilibrium_price = t.ema_param*t.limit_price + (1-t.ema_param)*t.equilibrium_price
 	}
-	t.targetBuy = t.calculateTarget(t.limitPrice, t.equilibriumPrice, t.aggressivenessBuy, t.theta, true)
-	t.targetSell = t.calculateTarget(t.limitPrice, t.equilibriumPrice, t.aggressivenessSell, t.theta, false)
+	t.targetBuy = t.calculateTarget(t.limit_price, t.equilibrium_price, t.aggressiveness_buy, t.theta, true)
+	t.targetSell = t.calculateTarget(t.limit_price, t.equilibrium_price, t.aggressiveness_sell, t.theta, false)
 }
 
 func (t *Trader) Trade(orderListChannel chan<- Order) {
@@ -293,11 +294,10 @@ func (t *Trader) Start() {
 			case <-signals:
 				fmt.Println("INFO: interrupt is detected... closing order producer...")
 				(*orderProducer).Close()
-				orderListChannel <- Trade{}
+				orderListChannel <- Order{}
 			}
 		}
 	}(orderListChannel)
-
 	consumeChannel := make(chan struct{})
 	go func() {
 		for {
@@ -312,7 +312,6 @@ func (t *Trader) Start() {
 						consumedCount++
 					}
 				}
-			}
 			case consumerError := <-errors:
 				consumedCount++
 				fmt.Println("ERROR: received consumerError:", string(consumerError.Topic), string(consumerError.Partition), consumerError.Err)
@@ -321,12 +320,13 @@ func (t *Trader) Start() {
 				fmt.Println("INFO: interrupt is detected... Closing trade consummer...")
 				consumeChannel <- struct{}{}
 			}
-		}()
+		}
+	}()
 	<-consumeChannel
 	fmt.Println("INFO: closing... processed", consumedCount, "messages and produced", producedCount, "messages")
-}
+	}
 
-func publishOrder(trader_id string, quantity int, target float64, order_type string) Order {
+func publishOrder(trader_id string, quantity float64, target float64, order_type string) Order {
 
 	newUUID := uuid.New()
 	order := Order{
@@ -338,6 +338,10 @@ func publishOrder(trader_id string, quantity int, target float64, order_type str
 		Timestamp: time.Now().Format("2006-01-02 15:04:05"),
 	}
 	return order
+}
+
+func handleError(err error) {
+	fmt.Println("ERROR: invalid message consummed:", err)
 }
 
 func convertOrderToMessage(order Order) []byte {
@@ -369,10 +373,9 @@ func main() {
 			defer wg.Done()
 			j = j * -1
 			rand.Seed(time.Now().UnixNano())
-			randomNumber := rand.Intn(21)
 			t := NewTrader(
-				i,
-				rand.Intn(21)+90,
+				strconv.Itoa(i),
+				float64(rand.Intn(21)+90),
 				j*rand.Intn(21),
 				NewKafkaClient(),
 			)
