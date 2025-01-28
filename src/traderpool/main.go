@@ -7,7 +7,6 @@ import (
     "math/rand"
 	"os"
 	"os/signal"
-	"sort"
 	"time"
 	"sync"
 	"strconv"
@@ -15,6 +14,15 @@ import (
 	"github.com/IBM/sarama"
 	"github.com/google/uuid"
 )
+
+func getenv(key, fallback string) string {
+	// TODO: refactor through a configparser
+	value := os.Getenv(key)
+	if len(value) == 0 {
+		return fallback
+	}
+	return value
+}
 
 var marketMax = 150.00
 
@@ -261,7 +269,7 @@ func (t *Trader) Trade(orderListChannel chan<- Order) {
 		order_type = "sell"
 		target = t.targetSell
 	}
-	producerChannel <- publishOrder(t.trader_id, t.quantity, target,order_type)
+	orderListChannel <- publishOrder(t.trader_id, t.quantity, target,order_type)
 }
 
 
@@ -307,11 +315,11 @@ func (t *Trader) Start() {
 				if err != nil {
 					handleError(err)
 				} else {
-					if (msg["trader_left_id"] == t.trader_id && msg["left_status"] != "closed") || 
-					(msg["trader_right_id"] == t.trader_id && msg["right_status"] != "closed") {
+					if (trade.OrderId == t.trader_id) && (trade.Status != "closed") {
 						consumedCount++
 					}
 				}
+				
 			case consumerError := <-errors:
 				consumedCount++
 				fmt.Println("ERROR: received consumerError:", string(consumerError.Topic), string(consumerError.Partition), consumerError.Err)
@@ -363,7 +371,7 @@ func convertMessageToTrade(messageValue []byte) (Trade, error) {
 
 func main() {
 	fmt.Println("INFO: starting traders")
-	j := -1
+	var j float64 = -1
 	var wg sync.WaitGroup
 
 	for i := 0; i < 10; i++ {
@@ -376,7 +384,7 @@ func main() {
 			t := NewTrader(
 				strconv.Itoa(i),
 				float64(rand.Intn(21)+90),
-				j*rand.Intn(21),
+				float64(j) * float64(rand.Intn(21)),
 				NewKafkaClient(),
 			)
 			t.Start()
