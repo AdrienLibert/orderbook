@@ -24,15 +24,14 @@ func getenv(key, fallback string) string {
 	return value
 }
 
-var marketMax = 150.00
+var marketMax = 120.00
 
 type Order struct {
-	TraderID  string  `json:"trader_id"`
 	OrderID   string  `json:"order_id"`
 	OrderType string  `json:"order_type"`
 	Price     float64 `json:"price"`
 	Quantity  float64 `json:"quantity"`
-	Timestamp string `json:"timestamp"`
+	Timestamp float64 `json:"timestamp"`
 }
 
 type Trade struct {
@@ -174,15 +173,17 @@ func NewTrader(trader_id string, limit_price float64, quantity float64, kafkaCli
 	t.ema_param = 2 / float64(t.n_last_trades + 1)
 	t.max_newton_iter = 10
 	t.max_newton_error = 0.0001
-	t.equilibrium_price = 0
 
-	rand.Seed(time.Now().UnixNano())
-    randomNumber := rand.Float64()
-	t.theta = -1.0 * (5.0 * randomNumber)
-	t.aggressiveness_buy = -1.0 * (0.3 * randomNumber)
-	t.aggressiveness_sell = -1.0 * (0.3 * randomNumber)
+	t.equilibrium_price = limit_price
 
-	t.equilibrium_price = 0
+	randomNumber := rand.Float64()
+	t.theta = -2.5 + 5.0*randomNumber
+	t.aggressiveness_buy = -0.15 + 0.3*randomNumber
+	t.aggressiveness_sell = -0.15 + 0.3*randomNumber
+
+	fmt.Printf("Trader %s -> Limit Price: %.2f, Agg Buy: %.3f, Agg Sell: %.3f\n",
+		t.trader_id, t.limit_price, t.aggressiveness_buy, t.aggressiveness_sell)
+
 	t._quoteTopic = "orders.topic"
 	t._tradeTopic = "order.status.topic"
 	t._pricePointTopic = "order.last_price.topic"
@@ -258,10 +259,11 @@ func (t *Trader) updateTargetPrices() {
 	t.targetSell = t.calculateTarget(t.limit_price, t.equilibrium_price, t.aggressiveness_sell, t.theta, false)
 }
 
-func (t *Trader) Trade(orderListChannel chan<- Order) {
+func (t *Trader) Trade(orderListChannel chan<- Order) Order {
 	t.updateTargetPrices()
 	var order_type string
 	var target float64
+
 	if t.quantity > 0 {
 		order_type = "buy"
 		target = t.targetBuy
@@ -269,81 +271,96 @@ func (t *Trader) Trade(orderListChannel chan<- Order) {
 		order_type = "sell"
 		target = t.targetSell
 	}
-	orderListChannel <- publishOrder(t.trader_id, t.quantity, target,order_type)
+
+	order := publishOrder(t.trader_id, t.quantity, target, order_type)
+	orderListChannel <- order
+	return order
 }
 
-
 func (t *Trader) Start() {
-	orderProducer := t.kafkaClient.GetProducer()
+    orderProducer := t.kafkaClient.GetProducer()
+    if orderProducer == nil {
+        fmt.Println("ERROR: Kafka producer is nil! Exiting.")
+        return
+    }
 
-	master := t.kafkaClient.GetConsumer()
-	consumer, errors := t.kafkaClient.Assign(*master, t._tradeTopic)
+    master := t.kafkaClient.GetConsumer()
+    consumer, errors := t.kafkaClient.Assign(*master, t._tradeTopic)
+    signals := make(chan os.Signal, 1)
+    signal.Notify(signals, os.Interrupt)
 
-	signals := make(chan os.Signal, 1)
-	signal.Notify(signals, os.Interrupt)
+    consumedCount := 0
+    producedCount := 0
 
-	consumedCount := 0
-	producedCount := 0
+    orderListChannel := make(chan Order, 10)
 
-	orderListChannel := make(chan Order)
-	t.Trade(orderListChannel)
-	go func(orderMessage <-chan Order) {
-		for {
-			select {
-			case msg := <-orderMessage:
-				producerMessage := sarama.ProducerMessage{Topic: t._quoteTopic, Value: sarama.StringEncoder(convertOrderToMessage(msg))}
-				par, off, err := (*orderProducer).SendMessage(&producerMessage)
-				if err != nil {
-					fmt.Printf("ERROR: producing order in partition %d, offset %d: %s", par, off, err)
-				} else {
-					fmt.Println("INFO: produced order:", producerMessage)
-					producedCount++
-				}
-			case <-signals:
-				fmt.Println("INFO: interrupt is detected... closing order producer...")
-				(*orderProducer).Close()
-				orderListChannel <- Order{}
-			}
-		}
-	}(orderListChannel)
-	consumeChannel := make(chan struct{})
-	go func() {
-		for {
-			select {
-			case msg := <-consumer:
-				trade, err := convertMessageToTrade(msg.Value)
-				if err != nil {
-					handleError(err)
-				} else {
-					if (trade.OrderId == t.trader_id) && (trade.Status != "closed") {
-						consumedCount++
-					}
-				}
-				
-			case consumerError := <-errors:
-				consumedCount++
-				fmt.Println("ERROR: received consumerError:", string(consumerError.Topic), string(consumerError.Partition), consumerError.Err)
-				consumeChannel <- struct{}{}
-			case <-signals:
-				fmt.Println("INFO: interrupt is detected... Closing trade consummer...")
-				consumeChannel <- struct{}{}
-			}
-		}
-	}()
-	<-consumeChannel
-	fmt.Println("INFO: closing... processed", consumedCount, "messages and produced", producedCount, "messages")
-	}
+    go func(orderMessage <-chan Order) {
+        for msg := range orderMessage {
+            producerMessage := sarama.ProducerMessage{
+                Topic: t._quoteTopic,
+                Value: sarama.StringEncoder(convertOrderToMessage(msg)),
+            }
+            par, off, err := (*orderProducer).SendMessage(&producerMessage)
+            if err != nil {
+                fmt.Printf("ERROR: producing order in partition %d, offset %d: %s\n", par, off, err)
+            } else {
+                fmt.Println("INFO: produced order:", msg)
+                producedCount++
+            }
+        }
+    }(orderListChannel)
+
+    go func() {
+        for {
+            select {
+            case <-signals:
+                fmt.Println("INFO: Interrupt detected... Stopping traders.")
+                close(orderListChannel)
+                return
+            default:
+                t.Trade(orderListChannel)
+                time.Sleep(time.Second * 2)
+            }
+        }
+    }()
+
+    consumeChannel := make(chan struct{})
+    go func() {
+        for {
+            select {
+            case msg := <-consumer:
+                trade, err := convertMessageToTrade(msg.Value)
+                if err != nil {
+                    handleError(err)
+                } else {
+                    if (trade.OrderId == t.trader_id) && (trade.Status != "closed") {
+                        consumedCount++
+                    }
+                }
+            case consumerError := <-errors:
+                consumedCount++
+                fmt.Println("ERROR: received consumerError:", consumerError.Err)
+                consumeChannel <- struct{}{}
+            case <-signals:
+                fmt.Println("INFO: Interrupt detected... Closing trade consumer...")
+                consumeChannel <- struct{}{}
+            }
+        }
+    }()
+
+    <-consumeChannel
+    fmt.Println("INFO: Closing... processed", consumedCount, "messages and produced", producedCount, "messages")
+}
 
 func publishOrder(trader_id string, quantity float64, target float64, order_type string) Order {
 
 	newUUID := uuid.New()
 	order := Order{
-		TraderID: trader_id,
 		OrderID:  newUUID.String(),
 		OrderType: order_type,
 		Price:    target,
 		Quantity: quantity,
-		Timestamp: time.Now().Format("2006-01-02 15:04:05"),
+		Timestamp: float64(time.Now().Unix()),
 	}
 	return order
 }
@@ -370,26 +387,28 @@ func convertMessageToTrade(messageValue []byte) (Trade, error) {
 }
 
 func main() {
-	fmt.Println("INFO: starting traders")
-	var j float64 = -1
-	var wg sync.WaitGroup
+    fmt.Println("INFO: starting traders")
 
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
+    rand.Seed(time.Now().UnixNano())
 
-		go func(i int) {
-			defer wg.Done()
-			j = j * -1
-			rand.Seed(time.Now().UnixNano())
-			t := NewTrader(
-				strconv.Itoa(i),
-				float64(rand.Intn(21)+90),
-				float64(j) * float64(rand.Intn(21)),
-				NewKafkaClient(),
-			)
-			t.Start()
-		}(i)
-	}
+    var j float64 = -1
+    var wg sync.WaitGroup
 
-	wg.Wait()
+    for i := 0; i < 10; i++ {
+        wg.Add(1)
+
+        go func(i int) {
+            defer wg.Done()
+            j = j * -1
+            t := NewTrader(
+                strconv.Itoa(i),
+                float64(rand.Intn(105-95+1) + 95),
+                float64(j) * float64(rand.Intn(11)+5),
+                NewKafkaClient(),
+            )
+            t.Start()
+        }(i)
+    }
+
+    wg.Wait()
 }
