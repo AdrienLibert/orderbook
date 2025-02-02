@@ -1,14 +1,10 @@
-FROM python:3.12.1-bullseye
-
-RUN mkdir /app
-COPY ./traderpool /app/
-RUN mkdir /app/dist
-COPY ./drgn/dist/ /app/dist
+FROM golang:1.23.4
 
 WORKDIR /app
+COPY ./traderpool/go.mod ./traderpool/go.sum ./
+RUN go mod tidy
+COPY ./traderpool /app
 
-RUN pip3 install uv~=0.5
-RUN python3 -m uv pip install -r requirements.txt --find-links file://${PWD}/dist/
-RUN touch /app/task.conf
+RUN go build -o main .
 
-CMD ["python3", "entrypoint.py"]
+CMD ["./main"]
