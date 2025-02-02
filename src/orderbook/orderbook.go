@@ -4,6 +4,7 @@ type Heap interface {
 	Push(x interface{})
 	Pop() interface{}
 	Peak() interface{}
+	Len() int
 }
 
 type MinHeap []float64
@@ -59,16 +60,46 @@ func (h *MaxHeap) Peak() interface{} {
 }
 
 type Orderbook struct {
-	BestBid           *MaxHeap
-	BestAsk           *MinHeap
-	PriceToVolume     map[float64]float64
-	PriceToSellOrders map[float64][]*Order
+	BestBid       *MaxHeap
+	BestAsk       *MinHeap
+	PriceToVolume map[float64]float64
+	// indexes + containers
 	PriceToBuyOrders  map[float64][]*Order
+	PriceToSellOrders map[float64][]*Order
 }
 
 func NewOrderBook() *Orderbook {
 	o := new(Orderbook)
 	o.BestBid = &MaxHeap{}
 	o.BestAsk = &MinHeap{}
+	o.PriceToBuyOrders = make(map[float64][]*Order)
+	o.PriceToSellOrders = make(map[float64][]*Order)
 	return o
+}
+
+func (o *Orderbook) AddOrder(order *Order) {
+	// Add order in orderbook
+	// Rules:
+	// - Hashmap of orders are indexes used to assess price in heaps exist
+	// - Orders are added at the end of the list of orders
+	price := order.Price
+	orderType := order.OrderType
+
+	if orderType == "buy" {
+		val, ok := o.PriceToBuyOrders[price]
+		if ok {
+			o.PriceToBuyOrders[price] = append(val, order)
+		} else {
+			o.BestBid.Push(price)
+			o.PriceToBuyOrders[price] = []*Order{order}
+		}
+	} else {
+		val, ok := o.PriceToSellOrders[price]
+		if ok {
+			o.PriceToSellOrders[price] = append(val, order)
+		} else {
+			o.BestAsk.Push(price)
+			o.PriceToSellOrders[price] = []*Order{order}
+		}
+	}
 }

@@ -109,33 +109,34 @@ func (me *MatchingEngine) Start() {
 }
 
 func (me *MatchingEngine) Process(inOrder *Order, producerChannel chan<- Trade, pricePointChannel chan<- PricePoint) {
-	var currentBook *map[float64][]*Order
+	// var currentBook *map[float64][]*Order
 	var oppositeBook *map[float64][]*Order
-	var currentBestPrice Heap
+	// var currentBestPrice Heap
 	var oppositeBestPrice Heap
 	var action string
 	var comparator func(x, y float64) bool
 
 	if inOrder.Quantity > 0 {
-		currentBook = &me.orderBook.PriceToBuyOrders
+		// currentBook = &me.orderBook.PriceToBuyOrders
 		oppositeBook = &me.orderBook.PriceToSellOrders
-		currentBestPrice = me.orderBook.BestBid
+		// currentBestPrice = me.orderBook.BestBid
 		oppositeBestPrice = me.orderBook.BestAsk
 		action = "buy"
 		comparator = func(x, y float64) bool { return x >= y }
 	} else {
-		currentBook = &me.orderBook.PriceToSellOrders
+		// currentBook = &me.orderBook.PriceToSellOrders
 		oppositeBook = &me.orderBook.PriceToBuyOrders
-		currentBestPrice = me.orderBook.BestAsk
+		// currentBestPrice = me.orderBook.BestAsk
 		oppositeBestPrice = me.orderBook.BestBid
 		action = "sell"
 		inOrder.Quantity = -inOrder.Quantity
 		comparator = func(x, y float64) bool { return x <= y }
 	}
-	inPrice := inOrder.Price
 
-	for inOrder.Quantity > 0 && comparator(inOrder.Price, oppositeBestPrice.Peak().(float64)) {
+	// loop on opposite book
+	for inOrder.Quantity > 0 && oppositeBestPrice.Len() > 0 && comparator(inOrder.Price, oppositeBestPrice.Peak().(float64)) {
 		oppositeBestPriceQueue := (*oppositeBook)[oppositeBestPrice.Peak().(float64)]
+		// loop on nest price queue
 		for inOrder.Quantity > 0 && len(oppositeBestPriceQueue) > 0 {
 			outOrder := cut(0, &oppositeBestPriceQueue)
 			tradeQuantity := math.Min(inOrder.Quantity, outOrder.Quantity)
@@ -150,21 +151,24 @@ func (me *MatchingEngine) Process(inOrder *Order, producerChannel chan<- Trade, 
 			inOrder.Quantity -= tradeQuantity
 			outOrder.Quantity -= tradeQuantity
 
-			producerChannel <- createTrade(inOrder, tradeQuantity, price, action)
-			producerChannel <- createTrade(outOrder, tradeQuantity, price, action)
-			pricePointChannel <- createPricePoint(price)
+			if producerChannel != nil {
+				producerChannel <- createTrade(inOrder, tradeQuantity, price, action)
+				producerChannel <- createTrade(outOrder, tradeQuantity, price, action)
+			}
+			if pricePointChannel != nil {
+				pricePointChannel <- createPricePoint(price)
+			}
 
 			if outOrder.Quantity > 0 {
-				oppositeBestPriceQueue = append([]*Order{outOrder}, oppositeBestPriceQueue...)
+				me.orderBook.AddOrder(outOrder)
 			}
 		}
-
 		if len(oppositeBestPriceQueue) == 0 {
-			oppositeBestPrice.Pop()
+			bestPrice := oppositeBestPrice.Pop().(float64)
+			delete(*oppositeBook, bestPrice)
 		}
 	}
 	if inOrder.Quantity > 0 {
-		currentBestPrice.Push(inPrice)
-		(*currentBook)[inPrice] = append((*currentBook)[inPrice], inOrder)
+		me.orderBook.AddOrder(inOrder)
 	}
 }

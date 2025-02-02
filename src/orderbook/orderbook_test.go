@@ -3,6 +3,7 @@ package main
 import (
 	"container/heap"
 	"testing"
+	"time"
 )
 
 func TestMinHeapPop(t *testing.T) {
@@ -72,5 +73,67 @@ func TestMaxHeapPeak(t *testing.T) {
 		}
 		count++
 		heap.Pop(h)
+	}
+}
+
+func TestOrderBookAddOrder(t *testing.T) {
+	orderbook := NewOrderBook()
+	now := time.Now().UTC().Unix()
+	price := 10.0
+	buyOrder := Order{
+		OrderID:   "uuid-uuid-uuid-uuid",
+		OrderType: "buy",
+		Price:     price,
+		Quantity:  20.0,
+		Timestamp: now,
+	}
+
+	orderbook.AddOrder(&buyOrder)
+	if orderbook.BestBid.Len() != 1 {
+		t.Errorf("got %d, wanted %d", orderbook.BestBid.Len(), 1)
+	}
+	if orderbook.BestBid.Peak() != price {
+		t.Errorf("got %f, wanted %f", orderbook.BestBid.Peak(), price)
+	}
+	if len(orderbook.PriceToBuyOrders) != 1 {
+		t.Errorf("got %d, wanted %d", len(orderbook.PriceToBuyOrders), 1)
+	}
+
+	if orderbook.BestAsk.Len() != 0 {
+		t.Errorf("got %d, wanted %d", orderbook.BestAsk.Len(), 0)
+	}
+	if orderbook.BestAsk.Peak() != nil {
+		t.Errorf("got %f, wanted %s", orderbook.BestAsk.Peak(), "nil")
+	}
+	if len(orderbook.PriceToSellOrders) != 0 {
+		t.Errorf("got %d, wanted %d", len(orderbook.PriceToSellOrders), 0)
+	}
+
+	sellOrder := Order{
+		OrderID:   "uuid-uuid-uuid-uuid",
+		OrderType: "sell",
+		Price:     price,
+		Quantity:  20.0,
+		Timestamp: now,
+	}
+	orderbook.AddOrder(&sellOrder)
+	if orderbook.BestAsk.Len() != 1 {
+		t.Errorf("got %d, wanted %d", orderbook.BestAsk.Len(), 1)
+	}
+	if orderbook.BestAsk.Peak() != price {
+		t.Errorf("got %f, wanted %f", orderbook.BestAsk.Peak(), price)
+	}
+	if len(orderbook.PriceToSellOrders) != 1 {
+		t.Errorf("got %d, wanted %d", len(orderbook.PriceToSellOrders), 1)
+	}
+
+	if orderbook.BestBid.Len() != 1 {
+		t.Errorf("got %d, wanted %d", orderbook.BestBid.Len(), 1)
+	}
+	if orderbook.BestBid.Peak() != price {
+		t.Errorf("got %f, wanted %f", orderbook.BestBid.Peak(), price)
+	}
+	if len(orderbook.PriceToBuyOrders) != 1 {
+		t.Errorf("got %d, wanted %d", len(orderbook.PriceToBuyOrders), 1)
 	}
 }

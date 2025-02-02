@@ -10,7 +10,7 @@ type Order struct {
 	OrderType string  `json:"order_type"`
 	Price     float64 `json:"price"`
 	Quantity  float64 `json:"quantity"`
-	Timestamp float64 `json:"timestamp"`
+	Timestamp int64   `json:"timestamp"`
 }
 
 type Trade struct {
