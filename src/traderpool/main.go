@@ -187,67 +187,67 @@ func NewTrader(trader_id string, limit_price float64, quantity float64, kafkaCli
 	t._quoteTopic = "orders.topic"
 	t._tradeTopic = "order.status.topic"
 	t._pricePointTopic = "order.last_price.topic"
+	fmt.Printf("trade")
 	return t
 }
 
-func (t *Trader) newtonMethod(theta_est float64) float64 {
-	var rightSide float64
-	var max_ float64
-	if t.quantity > 0 {
-		max_ = 0
-		rightSide = (t.theta * (t.limit_price - t.equilibrium_price)) / (math.Exp(t.theta) - 1)
-	} else {
-		max_ = 1000 
-		rightSide = (t.theta * (t.equilibrium_price - t.limit_price)) / (math.Exp(t.theta) - 1)
-	}
-	for i := 0; i < t.max_newton_iter; i++ {
-		expTheta := math.Exp(theta_est)
-		expThetaMinusOne := expTheta - 1
-		theta_est = theta_est - (theta_est*(t.limit_price-t.equilibrium_price))/expThetaMinusOne
-		if math.Abs(theta_est-rightSide) < t.max_newton_error {
-			break
-		}
-		dfTheta := (max_-t.equilibrium_price)/expThetaMinusOne - (expTheta*(max_-t.equilibrium_price)*theta_est)/(math.Pow(expThetaMinusOne, 2))
-		theta_est -= rightSide / dfTheta
-	}
-	if theta_est == 0 {
+func (t *Trader) computeThetaEstimate() float64 {
+	if math.Abs(t.theta) < 1e-8 {
 		return 0.000001
 	}
-	return theta_est
+
+	var rightSide float64
+	if t.quantity > 0 {
+		rightSide = (t.theta * (t.limit_price - t.equilibrium_price)) / (math.Exp(t.theta) - 1)
+	} else {
+		rightSide = (t.theta * (t.equilibrium_price - t.limit_price)) / (math.Exp(t.theta) - 1)
+	}
+
+	rightSide = math.Max(-2.0, math.Min(2.0, rightSide))
+
+	return rightSide
 }
 
 func (t *Trader) calculateTarget(limit_price float64, equilibrium_price float64, aggressiveness, theta float64, isBuy bool) float64 {
-	var factor float64
-	if limit_price < equilibrium_price {
-		if aggressiveness >= 0 {
-			return limit_price
-		} else {
-			factor = (math.Exp(-aggressiveness*theta) - 1) / (math.Exp(theta) - 1)
-			if isBuy {
-				return limit_price * (1 - factor)
-			} else {
-				return limit_price + (marketMax-limit_price)*factor
-			}
-		}
-	} else {
-		if aggressiveness >= 0 {
-			factor = (math.Exp(aggressiveness*theta) - 1) / (math.Exp(theta) - 1)
-			if isBuy {
-				return equilibrium_price + (limit_price-equilibrium_price)*factor
-			} else {
-				return limit_price + (equilibrium_price-limit_price)*(1-factor)
-			}
-		} else {
-			thetaEst := t.newtonMethod(t.theta)
-			factor = (math.Exp(-aggressiveness*thetaEst) - 1) / (math.Exp(thetaEst) - 1)
-			if isBuy {
-				return equilibrium_price * (1 - factor)
-			} else {
-				return equilibrium_price + (marketMax-equilibrium_price)*factor
-			}
-		}
-	}
+    var factor float64
+
+    if limit_price < equilibrium_price {
+        if aggressiveness >= 0 {
+            return limit_price
+        } else {
+            factor = (math.Exp(math.Abs(aggressiveness)*theta) - 1) / (math.Exp(theta) - 1 + 1e-8)
+            factor = math.Max(0.2, math.Min(0.8, factor))
+
+            if isBuy {
+                return math.Max(80.0, limit_price * (1 - factor))
+            } else {
+                return limit_price + (marketMax - limit_price) * factor
+            }
+        }
+    } else {
+        if aggressiveness >= 0 {
+            factor = (math.Exp(aggressiveness*theta) - 1) / (math.Exp(theta) - 1 + 1e-8)
+            factor = math.Max(0.2, math.Min(0.8, factor))
+
+            if isBuy {
+                return equilibrium_price + (limit_price - equilibrium_price) * factor
+            } else {
+                return math.Max(limit_price, limit_price + (equilibrium_price - limit_price) * (1 - factor))
+            }
+        } else {
+            thetaEst := math.Max(-2.0, math.Min(2.0, t.computeThetaEstimate()))
+            factor = (math.Exp(math.Abs(aggressiveness)*thetaEst) - 1) / (math.Exp(thetaEst) - 1 + 1e-8)
+            factor = math.Max(0.2, math.Min(0.8, factor))
+
+            if isBuy {
+                return math.Max(80.0, equilibrium_price * (1 - factor))
+            } else {
+                return equilibrium_price + (marketMax - equilibrium_price) * factor
+            }
+        }
+    }
 }
+
 
 func (t *Trader) updateTargetPrices() {
 	if t.equilibrium_price == 0 {
