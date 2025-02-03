@@ -1,2 +1,0 @@
-confluent-kafka==2.5.3
-drgn==0.1.10
