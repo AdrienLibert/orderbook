@@ -3,9 +3,11 @@ package main
 import (
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func TestMachingEngineProcessScenarios(t *testing.T) {
+func TestMachingEngineProcessIterative(t *testing.T) {
 	orderbook := NewOrderBook()
 	machingEngine := NewMatchingEngine(nil, orderbook)
 
@@ -21,25 +23,15 @@ func TestMachingEngineProcessScenarios(t *testing.T) {
 		Timestamp: now,
 	}
 	machingEngine.Process(&buyOrder, nil, nil)
-	if orderbook.BestBid.Len() != 1 {
-		t.Errorf("got %d, wanted %d", orderbook.BestBid.Len(), 1)
-	}
-	if orderbook.BestBid.Peak() != buyPrice {
-		t.Errorf("got %f, wanted %f", orderbook.BestBid.Peak(), buyPrice)
-	}
-	if len(orderbook.PriceToBuyOrders) != 1 {
-		t.Errorf("got %d, wanted %d", len(orderbook.PriceToBuyOrders), 1)
-	}
-
-	if orderbook.BestAsk.Len() != 0 {
-		t.Errorf("got %d, wanted %d", orderbook.BestAsk.Len(), 0)
-	}
-	if orderbook.BestAsk.Peak() != nil {
-		t.Errorf("got %f, wanted %s", orderbook.BestAsk.Peak(), "nil")
-	}
-	if len(orderbook.PriceToSellOrders) != 0 {
-		t.Errorf("got %d, wanted %d", len(orderbook.PriceToSellOrders), 0)
-	}
+	// One element in buy book
+	assert.Equal(t, orderbook.BestBid.Len(), 1)
+	assert.Equal(t, orderbook.BestBid.Peak(), buyPrice)
+	assert.Equal(t, len(orderbook.PriceToBuyOrders), 1)
+	assert.Equal(t, orderbook.PriceToBuyOrders[buyPrice], []*Order{&buyOrder})
+	// No element in sell book
+	assert.Equal(t, orderbook.BestAsk.Len(), 0)
+	assert.Equal(t, orderbook.BestAsk.Peak(), nil)
+	assert.Equal(t, len(orderbook.PriceToSellOrders), 0)
 
 	// 2. Add a sell order with higher price
 	sellPrice := 11.0
@@ -51,25 +43,17 @@ func TestMachingEngineProcessScenarios(t *testing.T) {
 		Timestamp: now,
 	}
 	machingEngine.Process(&sellOrder, nil, nil)
-	if orderbook.BestAsk.Len() != 1 {
-		t.Errorf("got %d, wanted %d", orderbook.BestAsk.Len(), 1)
-	}
-	if orderbook.BestAsk.Peak() != sellPrice {
-		t.Errorf("got %f, wanted %f", orderbook.BestAsk.Peak(), 1.0)
-	}
-	if len(orderbook.PriceToSellOrders) != 1 {
-		t.Errorf("got %d, wanted %d", len(orderbook.PriceToSellOrders), 1)
-	}
+	// One element in buy book
+	assert.Equal(t, orderbook.BestBid.Len(), 1)
+	assert.Equal(t, orderbook.BestBid.Peak(), buyPrice)
+	assert.Equal(t, len(orderbook.PriceToBuyOrders), 1)
+	assert.Equal(t, orderbook.PriceToBuyOrders[buyPrice], []*Order{&buyOrder})
 
-	if orderbook.BestBid.Len() != 1 {
-		t.Errorf("got %d, wanted %d", orderbook.BestBid.Len(), 1)
-	}
-	if orderbook.BestBid.Peak() != buyPrice {
-		t.Errorf("got %f, wanted %f", orderbook.BestBid.Peak(), buyPrice)
-	}
-	if len(orderbook.PriceToBuyOrders) != 1 {
-		t.Errorf("got %d, wanted %d", len(orderbook.PriceToBuyOrders), 1)
-	}
+	// One element in sell book
+	assert.Equal(t, orderbook.BestAsk.Len(), 1)
+	assert.Equal(t, orderbook.BestAsk.Peak(), sellPrice)
+	assert.Equal(t, len(orderbook.PriceToSellOrders), 1)
+	assert.Equal(t, orderbook.PriceToSellOrders[sellPrice], []*Order{&sellOrder})
 
 	// 3. Add a matching buy Order which empties the sell side
 	newBuyPrice := 11.0
@@ -81,23 +65,14 @@ func TestMachingEngineProcessScenarios(t *testing.T) {
 		Timestamp: now,
 	}
 	machingEngine.Process(&newBuyOrder, nil, nil)
-	if orderbook.BestBid.Len() != 1 {
-		t.Errorf("got %d, wanted %d", orderbook.BestBid.Len(), 1)
-	}
-	if orderbook.BestBid.Peak() != buyPrice {
-		t.Errorf("got %f, wanted %f", orderbook.BestBid.Peak(), buyPrice)
-	}
-	if len(orderbook.PriceToBuyOrders) != 1 {
-		t.Errorf("got %d, wanted %d", len(orderbook.PriceToBuyOrders), 1)
-	}
+	// One element in buy book
+	assert.Equal(t, orderbook.BestBid.Len(), 1)
+	assert.Equal(t, orderbook.BestBid.Peak(), buyPrice)
+	assert.Equal(t, len(orderbook.PriceToBuyOrders), 1)
+	assert.Equal(t, orderbook.PriceToBuyOrders[buyPrice], []*Order{&buyOrder})
 
-	if orderbook.BestAsk.Len() != 0 {
-		t.Errorf("got %d, wanted %d", orderbook.BestAsk.Len(), 0)
-	}
-	if orderbook.BestAsk.Peak() != nil {
-		t.Errorf("got %f, wanted %s", orderbook.BestAsk.Peak(), "nil")
-	}
-	if len(orderbook.PriceToSellOrders) != 0 {
-		t.Errorf("got %d, wanted %d", len(orderbook.PriceToSellOrders), 0)
-	}
+	// No more element in sell book
+	assert.Equal(t, orderbook.BestAsk.Len(), 0)
+	assert.Equal(t, orderbook.BestAsk.Peak(), nil)
+	assert.Equal(t, len(orderbook.PriceToSellOrders), 0)
 }
