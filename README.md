@@ -1,5 +1,33 @@
 # Order Book
 
+## Structures
+### Orderbook
+
+The Order represents a simple limit order.
+```
+type Order struct {
+	OrderID   string
+	OrderType string
+	Price     float64
+	Quantity  float64
+	Timestamp int64
+}
+```
+
+The Orderbook is the actual data structure holding the orders ready to be filled. Main operations in an orderbook are
+- place order
+- get volume at price
+- delete (optional)
+
+```
+type Orderbook struct {
+	BestBid       *MaxHeap
+	BestAsk       *MinHeap
+	PriceToVolume map[float64]float64
+	PriceToOrders map[float64]Order
+}
+```
+
 ## Local Cluster
 
 ### Dependencies
