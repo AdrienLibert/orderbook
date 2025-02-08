@@ -2,8 +2,8 @@ package main
 
 import (
 	"encoding/json"
-	"testing"
 	"math"
+	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -11,21 +11,21 @@ import (
 func TestNewTrader(t *testing.T) {
 	trader := NewTrader("test_trader", 100.0, 10.0, nil)
 
-	assert.Equal(t, "test_trader", trader.trader_id)
-	assert.Equal(t, 100.0, trader.limit_price)
+	assert.Equal(t, "test_trader", trader.traderId)
+	assert.Equal(t, 100.0, trader.limitPrice)
 	assert.Equal(t, 10.0, trader.quantity)
 	assert.NotNil(t, trader)
 }
 
 func TestComputeThetaEstimate(t *testing.T) {
 	tests := []struct {
-		name          string
-		theta        float64
-		limitPrice   float64
+		name             string
+		theta            float64
+		limitPrice       float64
 		equilibriumPrice float64
-		quantity     float64
-		expectedMin  float64
-		expectedMax  float64
+		quantity         float64
+		expectedMin      float64
+		expectedMax      float64
 	}{
 		{"Basic positive", 0.5, 100.0, 95.0, 10.0, -2.0, 2.0},
 		{"Basic negative", -0.8, 100.0, 105.0, -10.0, -2.0, 2.0},
@@ -39,8 +39,8 @@ func TestComputeThetaEstimate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			trader := Trader{
 				theta:            tt.theta,
-				limit_price:      tt.limitPrice,
-				equilibrium_price: tt.equilibriumPrice,
+				limitPrice:       tt.limitPrice,
+				equilibriumPrice: tt.equilibriumPrice,
 				quantity:         tt.quantity,
 			}
 
@@ -56,14 +56,14 @@ func TestComputeThetaEstimate(t *testing.T) {
 
 func TestCalculateTarget(t *testing.T) {
 	tests := []struct {
-		name              string
-		limitPrice        float64
-		equilibriumPrice  float64
-		aggressiveness    float64
-		theta             float64
-		isBuy             bool
-		expectedMin       float64
-		expectedMax       float64
+		name             string
+		limitPrice       float64
+		equilibriumPrice float64
+		aggressiveness   float64
+		theta            float64
+		isBuy            bool
+		expectedMin      float64
+		expectedMax      float64
 	}{
 		{"Basic Buy Positive Aggression", 95.0, 100.0, 0.5, 1.0, true, 90.0, 100.0},
 		{"Basic Sell Positive Aggression", 105.0, 100.0, 0.5, 1.0, false, 100.0, 110.0},
