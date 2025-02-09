@@ -1,0 +1,12 @@
+{
+    "type": "object",
+    "version": "1.0.0",
+    "metadata": {
+        "topic": "order.last_price.topic"
+    },
+    "properties": {
+        "price": {
+            "type": "float64"
+        }
+    }
+  }
