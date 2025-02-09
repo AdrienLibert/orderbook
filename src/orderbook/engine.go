@@ -22,7 +22,7 @@ func NewMatchingEngine(kafkaClient *KafkaClient, orderBook *Orderbook) *Matching
 	me.kafkaClient = kafkaClient
 	me.orderBook = orderBook
 	me.quoteTopic = "orders.topic"
-	me.tradeTopic = "order.status.topic"
+	me.tradeTopic = "trades.topic"
 	me.pricePointTopic = "order.last_price.topic"
 	return me
 }

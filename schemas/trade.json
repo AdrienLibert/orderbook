@@ -1,0 +1,24 @@
+{
+    "type": "object",
+    "version": "1.0.0",
+    "metadata": {
+        "topic": "trades.topic"
+    },
+    "properties": {
+        "order_id": {
+            "type": "string"
+        },
+        "quantity": {
+            "type": "float64"
+        },
+        "price": {
+            "type": "float64"
+        },
+        "action": {
+            "type": "action"
+        },
+        "status": {
+            "type": "string"
+        }
+    }
+  }

@@ -1,7 +1,7 @@
 topics:
   - orders.topic:
-      partition: 1
-  - order.status.topic:
+      partition: 1 # must ensure order per strict SLA with traders
+  - trades.topic:
       partition: 1
   - order.last_price.topic:
       partition: 1
