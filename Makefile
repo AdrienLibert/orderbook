@@ -16,10 +16,12 @@ build_traderpool:
 
 helm:
 	helm repo add bitnami https://charts.bitnami.com/bitnami
+	helm repo add grafana https://grafana.github.io/helm-charts
 	helm repo update
 
 clear_helm:
 	helm repo remove bitnami
+	helm repo remove grafana
 
 start_kafka:
 	helm upgrade --install bitnami bitnami/kafka --version 31.0.0 -n orderbook --create-namespace -f helm-values/values-local.yaml
@@ -32,7 +34,6 @@ stop_kafka:
 	helm uninstall --ignore-not-found bitnami -n orderbook
 	kubectl delete --ignore-not-found -f k8s/kafka_init/
 	kubectl delete --ignore-not-found pvc data-bitnami-kafka-controller-0 -n orderbook
-
 
 start_kafkainit:
 	kubectl apply -f k8s/kafka_init/
@@ -53,6 +54,17 @@ start_traderpool:
 
 stop_traderpool:
 	kubectl delete -f k8s/traderpool/ --ignore-not-found
+
+build_monitoring:
+	helm install grafana grafana/grafana -f k8s/monitoring/values.yaml --namespace monitoring --create-namespace
+
+start_monitoring:
+	 export POD_NAME=$$(kubectl get pods --namespace monitoring -l "app.kubernetes.io/name=grafana,app.kubernetes.io/instance=grafana" -o jsonpath="{.items[0].metadata.name}"); \
+	 kubectl --namespace monitoring port-forward $$POD_NAME 3000
+
+stop_monitoring:
+	helm uninstall --ignore-not-found grafana -n monitoring
+	kubectl delete --ignore-not-found ns monitoring
 
 make start: start_kafka start_orderbook start_traderpool
 
