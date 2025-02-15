@@ -12,7 +12,10 @@ build_orderbook:
 	docker build -t local/orderbook -f src/orderbook/Dockerfile src
 
 build_traderpool:
-	docker build --no-cache -t local/traderpool -f src/traderpool/Dockerfile src
+	docker build -t local/traderpool -f src/traderpool/Dockerfile src
+
+build_flink:
+	docker build -t local/flink -f src/flink/Dockerfile	src
 
 helm:
 	helm repo add bitnami https://charts.bitnami.com/bitnami
