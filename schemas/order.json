@@ -2,6 +2,7 @@
     "type": "object",
     "version": "1.0.0",
     "metadata": {
+        "name": "order",
         "topic": "orders.topic"
     },
     "properties": {
@@ -12,13 +13,14 @@
             "type": "string"
         },
         "price": {
-            "type": "float64"
+            "type": "number"
         },
         "quantity": {
-            "type": "float64"
+            "type": "number"
         },
         "timestamp": {
-            "type": "int64"
+            "type": "integer"
         }
-    }
+    },
+    "required": ["order_id", "order_type", "price", "quantity", "timestamp"]
 }

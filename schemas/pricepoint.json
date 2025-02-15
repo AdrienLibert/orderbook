@@ -2,11 +2,13 @@
     "type": "object",
     "version": "1.0.0",
     "metadata": {
+        "name": "pricepoint",
         "topic": "order.last_price.topic"
     },
     "properties": {
         "price": {
-            "type": "float64"
+            "type": "number"
         }
-    }
+    },
+    "required": ["price"]
   }
