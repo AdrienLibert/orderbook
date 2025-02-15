@@ -54,9 +54,12 @@ start_traderpool:
 stop_traderpool:
 	kubectl delete -f k8s/traderpool/ --ignore-not-found
 
-make start: start_kafka start_orderbook start_traderpool
+start: start_kafka start_orderbook start_traderpool
 
-make stop: stop_kafka stop_orderbook stop_traderpool stop_kafkainit
+stop: stop_kafka stop_orderbook stop_traderpool stop_kafkainit
 
-make dev: 
+dev: 
 	uv pip install -r requirements-dev.txt --find-links $$PWD/src/drgn/dist/
+
+test:
+	pytest tests/ -vv

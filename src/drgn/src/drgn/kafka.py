@@ -9,6 +9,7 @@ kafka_config = {
     "security.protocol": env_config["kafka"]["security_protocol"],
 }
 
+
 class KafkaClient:
     def __init__(self, group_id: str = __file__):
         self._consumer_config = kafka_config | {
@@ -57,7 +58,7 @@ class KafkaClient:
             for msg in msgs:
                 if msg.error():
                     if msg.error().code() == KafkaError._PARTITION_EOF:
-                        continue 
+                        continue
                     else:
                         print(f"ERROR - KafkaException - {msg.error()}")
                 else:

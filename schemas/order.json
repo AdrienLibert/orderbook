@@ -1,0 +1,26 @@
+{
+    "type": "object",
+    "version": "1.0.0",
+    "metadata": {
+        "name": "order",
+        "topic": "orders.topic"
+    },
+    "properties": {
+        "order_id": {
+            "type": "string"
+        },
+        "order_type": {
+            "type": "string"
+        },
+        "price": {
+            "type": "number"
+        },
+        "quantity": {
+            "type": "number"
+        },
+        "timestamp": {
+            "type": "integer"
+        }
+    },
+    "required": ["order_id", "order_type", "price", "quantity", "timestamp"]
+}

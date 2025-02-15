@@ -8,7 +8,7 @@ import argparse
 
 
 # defined in topics_config.yaml. if changed, need to rebuild the image.
-TOPIC = "order.status.topic"
+TOPIC = "trades.topic"
 
 
 def commit(err: KafkaError, topics: list[TopicPartition]):

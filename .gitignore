@@ -4,3 +4,4 @@ src/lib/dist
 src/lib/drgn.egg-info
 dist/
 **/.venv/
+.pytest_cache/
