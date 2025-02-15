@@ -12,7 +12,7 @@
         "quantity": {
             "type": "number"
         },
-        "price": {
+        "price": {  
             "type": "number"
         },
         "action": {
