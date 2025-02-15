@@ -62,4 +62,4 @@ dev:
 	uv pip install -r requirements-dev.txt --find-links $$PWD/src/drgn/dist/
 
 test:
-	PYTHONPATH=./ pytest tests/contracts.py -vv
+	pytest tests/ -vv
