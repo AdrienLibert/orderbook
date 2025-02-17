@@ -16,13 +16,16 @@ build_traderpool:
 
 helm:
 	helm repo add bitnami https://charts.bitnami.com/bitnami
+	helm repo add jetstack https://charts.jetstack.io
+	helm repo add flink-operator-repo https://downloads.apache.org/flink/flink-kubernetes-operator-1.10.0/
 	helm repo update
 
 clear_helm:
 	helm repo remove bitnami
+	helm repo remove jetstack
 
 start_kafka:
-	helm upgrade --install bitnami bitnami/kafka --version 31.0.0 -n orderbook --create-namespace -f helm-values/values-local.yaml
+	helm upgrade --install bitnami bitnami/kafka --version 31.0.0 -n orderbook --create-namespace -f k8s/kafka/values-local.yaml
 	kubectl apply -f k8s/kafka_init/
 
 forward_kafka:
@@ -32,7 +35,6 @@ stop_kafka:
 	helm uninstall --ignore-not-found bitnami -n orderbook
 	kubectl delete --ignore-not-found -f k8s/kafka_init/
 	kubectl delete --ignore-not-found pvc data-bitnami-kafka-controller-0 -n orderbook
-
 
 start_kafkainit:
 	kubectl apply -f k8s/kafka_init/
@@ -53,6 +55,18 @@ start_traderpool:
 
 stop_traderpool:
 	kubectl delete -f k8s/traderpool/ --ignore-not-found
+
+start_flink_on_k8s:
+	helm install cert-manager jetstack/cert-manager --namespace flink --create-namespace --version v1.17.1 -f k8s/flink-kubernetes-operator/values-local-certmanager.yaml
+	helm install flink-kubernetes-operator flink-operator-repo/flink-kubernetes-operator --namespace flink --create-namespace -f k8s/flink-kubernetes-operator/values-local.yaml
+
+stop_flink_on_k8s:
+	helm delete --ignore-not-found cert-manager -n flink
+	helm delete --ignore-not-found flink-kubernetes-operator -n flink
+	kubectl delete crd issuers.cert-manager.io clusterissuers.cert-manager.io certificates.cert-manager.io certificaterequests.cert-manager.io \
+		orders.acme.cert-manager.io \
+		challenges.acme.cert-manager.io
+	kubectl delete crd flinkclusters.flinkoperator.k8s.io --ignore-not-found
 
 start: start_kafka start_orderbook start_traderpool
 
