@@ -63,14 +63,15 @@ start_flink_on_k8s:
 stop_flink_on_k8s:
 	helm delete --ignore-not-found cert-manager -n flink
 	helm delete --ignore-not-found flink-kubernetes-operator -n flink
-	kubectl delete crd issuers.cert-manager.io clusterissuers.cert-manager.io certificates.cert-manager.io certificaterequests.cert-manager.io \
-		orders.acme.cert-manager.io \
-		challenges.acme.cert-manager.io
+	kubectl delete crd issuers.cert-manager.io clusterissuers.cert-manager.io certificates.cert-manager.io certificaterequests.cert-manager.io orders.acme.cert-manager.io challenges.acme.cert-manager.io  --ignore-not-found
 	kubectl delete crd flinkclusters.flinkoperator.k8s.io --ignore-not-found
-
+	kubectl delete secret webhook-server-cert -n flink --ignore-not-found
+	kubectl delete secret cert-manager-webhook-ca -n flink --ignore-not-found
+	kubectl delete job cert-manager-startupapicheck -n flink --ignore-not-found
+	
 start: start_kafka start_orderbook start_traderpool
 
-stop: stop_kafka stop_orderbook stop_traderpool stop_kafkainit
+stop: stop_kafka stop_orderbook stop_traderpool stop_kafkainit stop_flink_on_k8s
 
 dev: 
 	uv pip install -r requirements-dev.txt --find-links $$PWD/src/drgn/dist/
