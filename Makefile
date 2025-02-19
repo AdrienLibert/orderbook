@@ -55,16 +55,21 @@ start_traderpool:
 stop_traderpool:
 	kubectl delete -f k8s/traderpool/ --ignore-not-found
 
-build_monitoring:
-	helm install grafana grafana/grafana -f k8s/monitoring/values.yaml --namespace monitoring --create-namespace
+build_grafana:
+	helm install grafana grafana/grafana -f k8s/monitoring/values.yaml
+	kubectl apply -f k8s/monitoring/kubelet_api.yaml
+	TOKEN=$$(kubectl get secret prom-api-user-secret -o jsonpath='{.data.token}' | base64 --decode); \
 
-start_monitoring:
-	 export POD_NAME=$$(kubectl get pods --namespace monitoring -l "app.kubernetes.io/name=grafana,app.kubernetes.io/instance=grafana" -o jsonpath="{.items[0].metadata.name}"); \
-	 kubectl --namespace monitoring port-forward $$POD_NAME 3000
 
-stop_monitoring:
-	helm uninstall --ignore-not-found grafana -n monitoring
-	kubectl delete --ignore-not-found ns monitoring
+start_grafana:
+	 kubectl apply -f k8s/monitoring/prometheus-deployment.yaml
+	 export POD_NAME=$$(kubectl get pods -l "app.kubernetes.io/name=grafana,app.kubernetes.io/instance=grafana" -o jsonpath="{.items[0].metadata.name}"); \
+	 kubectl port-forward $$POD_NAME 3000
+
+stop_grafana:
+	helm uninstall --ignore-not-found grafana
+	kubectl delete --ignore-not-found pvc grafana
+	kubectl delete deployment prometheus
 
 make start: start_kafka start_orderbook start_traderpool
 
