@@ -14,6 +14,9 @@ build_orderbook:
 build_traderpool:
 	docker build --no-cache -t local/traderpool -f src/traderpool/Dockerfile src
 
+build_flink:
+	docker build -t local/flink -f src/flink/Dockerfile src/flink/
+
 helm:
 	helm repo add bitnami https://charts.bitnami.com/bitnami
 	helm repo add jetstack https://charts.jetstack.io
@@ -24,8 +27,11 @@ clear_helm:
 	helm repo remove bitnami
 	helm repo remove jetstack
 
+start_infra:
+	kubectl apply -f k8s/namespaces.yaml
+
 start_kafka:
-	helm upgrade --install bitnami bitnami/kafka --version 31.0.0 -n orderbook --create-namespace -f k8s/kafka/values-local.yaml
+	helm upgrade --install bitnami bitnami/kafka --version 31.0.0 -n orderbook --create-namespace -f helm/kafka/values-local.yaml
 	kubectl apply -f k8s/kafka_init/
 
 forward_kafka:
@@ -43,7 +49,6 @@ stop_kafkainit:
 	kubectl delete -f k8s/kafka_init/ --ignore-not-found
 
 start_orderbook:
-	kubectl apply -f k8s/namespace.yaml
 	kubectl apply -f k8s/orderbook/
 
 stop_orderbook:
@@ -56,9 +61,10 @@ start_traderpool:
 stop_traderpool:
 	kubectl delete -f k8s/traderpool/ --ignore-not-found
 
-start_flink_on_k8s:
-	helm install cert-manager jetstack/cert-manager --namespace flink --create-namespace --version v1.17.1 -f k8s/flink-kubernetes-operator/values-local-certmanager.yaml
-	helm install flink-kubernetes-operator flink-operator-repo/flink-kubernetes-operator --namespace flink --create-namespace -f k8s/flink-kubernetes-operator/values-local.yaml
+start_flink_on_k8s: 
+	start_infra
+	helm install cert-manager jetstack/cert-manager --namespace flink --create-namespace --version v1.17.1 -f helm/flink-kubernetes-operator/values-local.yaml
+	helm install flink-kubernetes-operator flink-operator-repo/flink-kubernetes-operator --namespace flink --create-namespace -f helm/flink-kubernetes-operator/values-local.yaml
 
 stop_flink_on_k8s:
 	helm delete --ignore-not-found cert-manager -n flink
@@ -68,6 +74,10 @@ stop_flink_on_k8s:
 	kubectl delete secret webhook-server-cert -n flink --ignore-not-found
 	kubectl delete secret cert-manager-webhook-ca -n flink --ignore-not-found
 	kubectl delete job cert-manager-startupapicheck -n flink --ignore-not-found
+	kubectl delete namespace flink --ignore-not-found
+
+start_flink_example:
+	kubectl apply -f k8s/flink/example-deployment.yaml
 	
 start: start_kafka start_orderbook start_traderpool
 
