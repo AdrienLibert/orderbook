@@ -413,7 +413,7 @@ extraContainerVolumes: []
 ##
 persistence:
   type: pvc
-  enabled: true
+  enabled: false
   # storageClassName: default
   accessModes:
     - ReadWriteOnce
@@ -482,7 +482,7 @@ initChownData:
 
 # Administrator credentials when not using an existing secret (see below)
 adminUser: admin
-adminPassword: admin
+# adminPassword: strongpassword
 
 # Use an existing secret for the admin user.
 admin:
@@ -913,6 +913,11 @@ ldap:
   #   ssl_skip_verify = false
   #   bind_dn = "uid=%s,ou=users,dc=myorg,dc=com"
 
+# When process namespace sharing is enabled, processes in a container are visible to all other containers in the same pod
+# This parameter is added because the ldap reload api is not working https://grafana.com/docs/grafana/latest/developers/http_api/admin/#reload-ldap-configuration
+# To allow an extraContainer to restart the Grafana container
+shareProcessNamespace: false
+
 ## Grafana's SMTP configuration
 ## NOTE: To enable, grafana.ini must be configured with smtp.enabled
 ## ref: http://docs.grafana.org/installation/configuration/#smtp
@@ -930,7 +935,7 @@ sidecar:
     # -- The Docker registry
     registry: quay.io
     repository: kiwigrid/k8s-sidecar
-    tag: 1.28.0
+    tag: 1.30.0
     sha: ""
   imagePullPolicy: IfNotPresent
   resources: {}
@@ -1014,7 +1019,7 @@ sidecar:
     # Sets the size limit of the alert sidecar emptyDir volume
     sizeLimit: {}
   dashboards:
-    enabled: false
+    enabled: true
     # Additional environment variables for the dashboards sidecar
     env: {}
     ## "valueFrom" environment variable references that will be added to deployment pods. Name is templated.

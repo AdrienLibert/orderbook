@@ -56,7 +56,8 @@ stop_traderpool:
 	kubectl delete -f k8s/traderpool/ --ignore-not-found
 
 build_grafana:
-	helm install grafana grafana/grafana -f k8s/monitoring/values.yaml
+	helm install grafana grafana/grafana -f helm-values/values.yaml
+	helm upgrade --install grafana helm_charts/grafana
 	kubectl apply -f k8s/monitoring/kubelet_api.yaml
 	TOKEN=$$(kubectl get secret prom-api-user-secret -o jsonpath='{.data.token}' | base64 --decode); \
 
