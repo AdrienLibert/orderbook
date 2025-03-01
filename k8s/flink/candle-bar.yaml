@@ -2,7 +2,7 @@
 apiVersion: flink.apache.org/v1beta1
 kind: FlinkDeployment
 metadata:
-  name: basic-example
+  name: candle-bar
 spec:
   image: local/flink:latest
   flinkVersion: v1_20
@@ -18,6 +18,6 @@ spec:
       memory: "2048m"
       cpu: 1
   job:
-    jarURI: local:///opt/flink/examples/streaming/StateMachineExample.jar
+    jarURI: local:///opt/flink/jobs/CandleBar.jar
     parallelism: 2
     upgradeMode: stateless

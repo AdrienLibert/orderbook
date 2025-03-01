@@ -1,36 +1,14 @@
-# Use an official Java runtime as the base image
-FROM openjdk:11-jdk-slim
+FROM maven:3-eclipse-temurin-21 AS build
 
-# Set environment variables for Flink
-ENV FLINK_VERSION=1.20 \
-    SCALA_VERSION=3.6.2 \
-    FLINK_HOME=/opt/flink
+COPY pom.xml .
+RUN mvn dependency:go-offline
 
-# Update package manager and install necessary tools
-RUN apt-get update && apt-get install -y \
-    curl \
-    tar \
-    --no-install-recommends && rm -rf /var/lib/apt/lists/*
+COPY . .
+RUN mvn clean verify -o
 
-# Download and extract Apache Flink
-RUN curl -L https://downloads.apache.org/flink/flink-${FLINK_VERSION}/flink-${FLINK_VERSION}-bin-scala_${SCALA_VERSION}.tgz \
-    | tar -xz -C /opt && mv /opt/flink-${FLINK_VERSION} $FLINK_HOME
+FROM flink:1.20-java17
 
-# Set Flink binaries to PATH
-ENV PATH="$FLINK_HOME/bin:$PATH"
-
-# Set up working directory
-WORKDIR $FLINK_HOME
-
-# Expose Flink's default ports
-EXPOSE 8081 6123 6124
-
-# Copy entrypoint script (optional, create a custom entrypoint script if needed)
-COPY entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/entrypoint.sh
-
-# Set entrypoint
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
-
-# Define default command
-CMD ["help"]
+RUN cd /opt/flink/lib && \
+   curl -sO https://repo1.maven.org/maven2/org/apache/logging/log4j/log4j-layout-template-json/2.17.1/log4j-layout-template-json-2.17.1.jar
+   
+COPY --from=build --chown=flink:flink target/hello-world-job-1.0.jar /opt/flink-jobs/hello-world-job-1.0.jar

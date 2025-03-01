@@ -61,10 +61,9 @@ start_traderpool:
 stop_traderpool:
 	kubectl delete -f k8s/traderpool/ --ignore-not-found
 
-start_flink_on_k8s: 
-	start_infra
-	helm install cert-manager jetstack/cert-manager --namespace flink --create-namespace --version v1.17.1 -f helm/flink-kubernetes-operator/values-local.yaml
-	helm install flink-kubernetes-operator flink-operator-repo/flink-kubernetes-operator --namespace flink --create-namespace -f helm/flink-kubernetes-operator/values-local.yaml
+start_flink_on_k8s: start_infra
+	helm install cert-manager jetstack/cert-manager --namespace flink --version v1.17.1 -f helm/certmanager/values-local.yaml
+	helm install flink-kubernetes-operator flink-operator-repo/flink-kubernetes-operator --namespace flink --version 1.10.0 -f helm/flink-kubernetes-operator/values-local.yaml
 
 stop_flink_on_k8s:
 	helm delete --ignore-not-found cert-manager -n flink
@@ -74,11 +73,19 @@ stop_flink_on_k8s:
 	kubectl delete secret webhook-server-cert -n flink --ignore-not-found
 	kubectl delete secret cert-manager-webhook-ca -n flink --ignore-not-found
 	kubectl delete job cert-manager-startupapicheck -n flink --ignore-not-found
-	kubectl delete namespace flink --ignore-not-found
 
 start_flink_example:
 	kubectl apply -f k8s/flink/example-deployment.yaml
-	
+
+stop_flink_example:
+	kubectl delete -f k8s/flink/example-deployment.yaml --ignore-not-found
+
+start_flink_custom_jar:
+	kubectl apply -f k8s/flink/example-custom-jar.yaml
+
+stop_flink_custom_jar:
+	kubectl delete -f k8s/flink/example-custom-jar.yaml --ignore-not-found
+
 start: start_kafka start_orderbook start_traderpool
 
 stop: stop_kafka stop_orderbook stop_traderpool stop_kafkainit stop_flink_on_k8s
