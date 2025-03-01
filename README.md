@@ -60,6 +60,10 @@ make helm
 If other charts are used in the future, they will be added here.
 
 ### Start
+Start the infra
+```
+make start_infra
+```
 
 Start Kafka relied on Helm install. Some custom values are provided in helm-values directory.
 ```
