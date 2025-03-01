@@ -80,11 +80,11 @@ start_flink_example:
 stop_flink_example:
 	kubectl delete -f k8s/flink/example-deployment.yaml --ignore-not-found
 
-start_flink_custom_jar:
-	kubectl apply -f k8s/flink/example-custom-jar.yaml
+start_flink_custom_image:
+	kubectl apply -f k8s/flink/example-custom-image.yaml
 
-stop_flink_custom_jar:
-	kubectl delete -f k8s/flink/example-custom-jar.yaml --ignore-not-found
+stop_flink_custom_image:
+	kubectl delete -f k8s/flink/example-custom-image.yaml --ignore-not-found
 
 start: start_kafka start_orderbook start_traderpool
 
