@@ -40,4 +40,11 @@ spec:
         - name: PYTHONUNBUFFERED
           value: "1"
         - name: NUM_TRADERS
-          value: "25"
+          value: "2"
+        resources:
+          requests:
+            cpu: "125m"
+            memory: "128Mi"
+          limits:
+            cpu: "250m"
+            memory: "256Mi"

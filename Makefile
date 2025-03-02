@@ -16,7 +16,7 @@ build_traderpool:
 
 helm:
 	helm repo add bitnami https://charts.bitnami.com/bitnami
-	helm repo add grafana https://grafana.github.io/helm-charts
+	helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 	helm repo update
 
 clear_helm:
@@ -56,21 +56,17 @@ stop_traderpool:
 	kubectl delete -f k8s/traderpool/ --ignore-not-found
 
 build_grafana:
-	helm install grafana grafana/grafana -f helm-values/values.yaml
-	helm upgrade --install grafana helm_charts/grafana
-	kubectl apply -f k8s/monitoring/kubelet_api.yaml
-	TOKEN=$$(kubectl get secret prom-api-user-secret -o jsonpath='{.data.token}' | base64 --decode); \
-
+	helm upgrade --install kube-prometheus-stack helm_charts/kube-prometheus-stack -n monitoring --create-namespace
+	helm install kafka-exporter prometheus-community/prometheus-kafka-exporter -n monitoring
+	kubectl apply -f k8s/monitoring/ -n monitoring
 
 start_grafana:
-	 kubectl apply -f k8s/monitoring/prometheus-deployment.yaml
-	 export POD_NAME=$$(kubectl get pods -l "app.kubernetes.io/name=grafana,app.kubernetes.io/instance=grafana" -o jsonpath="{.items[0].metadata.name}"); \
-	 kubectl port-forward $$POD_NAME 3000
+	kubectl port-forward svc/kube-prometheus-stack-grafana 3000:80 -n monitoring
 
 stop_grafana:
-	helm uninstall --ignore-not-found grafana
-	kubectl delete --ignore-not-found pvc grafana
-	kubectl delete deployment prometheus
+	helm uninstall --ignore-not-found kube-prometheus-stack -n monitoring
+	helm uninstall --ignore-not-found kafka-exporter -n monitoring
+	kubectl delete --ignore-not-found pvc kube-prometheus-stack-grafana
 
 make start: start_kafka start_orderbook start_traderpool
 
