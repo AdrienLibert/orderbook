@@ -66,8 +66,8 @@ start_flink_on_k8s: start_infra
 	helm install flink-kubernetes-operator flink-operator-repo/flink-kubernetes-operator --namespace flink --version 1.10.0 -f helm/flink-kubernetes-operator/values-local.yaml
 
 stop_flink_on_k8s:
-	helm delete --ignore-not-found cert-manager -n flink
-	helm delete --ignore-not-found flink-kubernetes-operator -n flink
+	helm uninstall --ignore-not-found cert-manager -n flink
+	helm uninstall --ignore-not-found flink-kubernetes-operator -n flink
 	kubectl delete crd issuers.cert-manager.io clusterissuers.cert-manager.io certificates.cert-manager.io certificaterequests.cert-manager.io orders.acme.cert-manager.io challenges.acme.cert-manager.io  --ignore-not-found
 	kubectl delete crd flinkclusters.flinkoperator.k8s.io --ignore-not-found
 	kubectl delete secret webhook-server-cert -n flink --ignore-not-found
