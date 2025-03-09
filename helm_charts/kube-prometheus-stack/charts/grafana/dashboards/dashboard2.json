@@ -18,7 +18,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 25,
+  "id": 2,
   "links": [
     {
       "asDropdown": true,
@@ -33,6 +33,202 @@
     }
   ],
   "panels": [
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 15,
+      "options": {
+        "minVizHeight": 75,
+        "minVizWidth": 75,
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "sizing": "auto"
+      },
+      "pluginVersion": "11.5.2",
+      "targets": [
+        {
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "kube_pod_container_status_running{namespace=\"orderbook\", service=\"kube-prometheus-stack-kube-state-metrics\"}",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
+          "legendFormat": "{{pod}}",
+          "range": true,
+          "refId": "A",
+          "useBackend": false
+        }
+      ],
+      "title": "ContainerStatusRunning",
+      "type": "gauge"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "id": 13,
+      "options": {
+        "minVizHeight": 75,
+        "minVizWidth": 75,
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "sizing": "auto"
+      },
+      "pluginVersion": "11.5.2",
+      "targets": [
+        {
+          "disableTextWrap": false,
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "sum((rate(container_cpu_usage_seconds_total{namespace=\"orderbook\", service=\"grafana-kube-prometheus-st-kubelet\"}[1m]))) * 100",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
+          "instant": true,
+          "legendFormat": "__auto",
+          "range": false,
+          "refId": "A",
+          "useBackend": false
+        }
+      ],
+      "title": "Percentage CPU Total",
+      "type": "gauge"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "id": 14,
+      "options": {
+        "minVizHeight": 75,
+        "minVizWidth": 75,
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "sizing": "auto"
+      },
+      "pluginVersion": "11.5.2",
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=\"orderbook\", service=\"grafana-kube-prometheus-st-kubelet\"}[1m])) * 100",
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Percentage CPU pod",
+      "type": "gauge"
+    },
     {
       "datasource": {
         "type": "prometheus",
@@ -91,38 +287,13 @@
             ]
           }
         },
-        "overrides": [
-          {
-            "__systemRef": "hideSeriesFrom",
-            "matcher": {
-              "id": "byNames",
-              "options": {
-                "mode": "exclude",
-                "names": [
-                  "{cpu=\"total\", endpoint=\"https-metrics\", id=\"/kubepods/kubepods/burstable/podfa2cecd3-e630-427f-8734-028f39b2c126\", instance=\"192.168.65.3:10250\", job=\"kubelet\", metrics_path=\"/metrics/cadvisor\", namespace=\"orderbook\", node=\"docker-desktop\", pod=\"orderbook-pod-b596786cb-sm6c2\", service=\"kube-prometheus-stack-kubelet\"}"
-                ],
-                "prefix": "All except:",
-                "readOnly": true
-              }
-            },
-            "properties": [
-              {
-                "id": "custom.hideFrom",
-                "value": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": true
-                }
-              }
-            ]
-          }
-        ]
+        "overrides": []
       },
       "gridPos": {
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 0
+        "y": 16
       },
       "id": 11,
       "options": {
@@ -141,11 +312,15 @@
       "pluginVersion": "11.5.2",
       "targets": [
         {
+          "disableTextWrap": false,
           "editorMode": "code",
-          "expr": "rate(container_cpu_usage_seconds_total{namespace=\"orderbook\"}[5m]) * 1000",
-          "legendFormat": "{{kafka};{kafka};{traderpool};{orderbool}}",
+          "expr": "irate(container_cpu_usage_seconds_total{namespace=\"orderbook\", service=\"grafana-kube-prometheus-st-kubelet\"}[1m]) * 1000",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
+          "legendFormat": "{{pod}}",
           "range": true,
-          "refId": "A"
+          "refId": "A",
+          "useBackend": false
         }
       ],
       "title": "Per-Pod CPU Usage",
@@ -248,7 +423,7 @@
         "h": 7,
         "w": 24,
         "x": 0,
-        "y": 8
+        "y": 24
       },
       "id": 5,
       "interval": "1m",
@@ -273,11 +448,11 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${datasource}"
+            "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "100 - (avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
-          "legendFormat": "CPU Usage",
+          "expr": "(sum (rate(container_cpu_usage_seconds_total{namespace=\"orderbook\",service=\"grafana-kube-prometheus-st-kubelet\"}[1m]))) * 100",
+          "legendFormat": "cpu total",
           "range": true,
           "refId": "A"
         }
@@ -350,7 +525,7 @@
         "h": 7,
         "w": 24,
         "x": 0,
-        "y": 15
+        "y": 31
       },
       "id": 6,
       "options": {
@@ -512,7 +687,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -529,7 +705,7 @@
               "options": {
                 "mode": "exclude",
                 "names": [
-                  "{endpoint=\"https-metrics\", id=\"/kubepods/kubepods/burstable/pod9ee9866d-113d-48a7-8132-2ef9df052400\", instance=\"192.168.65.3:10250\", job=\"kubelet\", metrics_path=\"/metrics/cadvisor\", namespace=\"orderbook\", node=\"docker-desktop\", pod=\"bitnami-kafka-controller-0\", service=\"kube-prometheus-stack-kubelet\"}"
+                  "bitnami-kafka-controller-0"
                 ],
                 "prefix": "All except:",
                 "readOnly": true
@@ -552,7 +728,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 22
+        "y": 38
       },
       "id": 12,
       "options": {
@@ -571,14 +747,18 @@
       "pluginVersion": "11.5.2",
       "targets": [
         {
-          "editorMode": "code",
-          "expr": "container_memory_usage_bytes{namespace=\"orderbook\"} / 1024 / 1024",
-          "legendFormat": "__auto",
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "container_memory_usage_bytes{namespace=\"orderbook\", service=\"grafana-kube-prometheus-st-kubelet\"} / 1024 / 1024",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
+          "legendFormat": "{{pod}}",
           "range": true,
-          "refId": "A"
+          "refId": "A",
+          "useBackend": false
         }
       ],
-      "title": "Per-Pod Memory Usage",
+      "title": "Memory Usage Total",
       "type": "timeseries"
     },
     {
@@ -629,7 +809,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -645,7 +826,7 @@
         "h": 7,
         "w": 24,
         "x": 0,
-        "y": 30
+        "y": 46
       },
       "id": 7,
       "interval": "1m",
@@ -670,10 +851,12 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${datasource}"
+            "uid": "prometheus"
           },
-          "expr": "sum(container_memory_working_set_bytes{job=\"kubelet\", metrics_path=\"/metrics/cadvisor\", cluster=\"$cluster\", namespace=\"$namespace\", container!=\"\", image!=\"\"}) by (pod)",
-          "legendFormat": "__auto",
+          "editorMode": "code",
+          "expr": "sum(container_memory_working_set_bytes{namespace=\"orderbook\"}) / 1024 / 1024",
+          "legendFormat": "Memory Orderbook",
+          "range": true,
           "refId": "A"
         },
         {
@@ -682,16 +865,14 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "exemplar": false,
-          "expr": "100 * (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes))\r\n",
-          "format": "time_series",
-          "instant": false,
-          "legendFormat": "Memory Usage",
+          "expr": "sum by (pod) (container_memory_working_set_bytes{namespace=\"orderbook\"})",
+          "hide": false,
+          "legendFormat": "__auto",
           "range": true,
           "refId": "B"
         }
       ],
-      "title": "Memory Usage (w/o cache)",
+      "title": "Memory Usage Mo Per Pod",
       "type": "timeseries"
     },
     {
@@ -713,7 +894,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -759,7 +941,7 @@
         "h": 7,
         "w": 24,
         "x": 0,
-        "y": 37
+        "y": 53
       },
       "id": 8,
       "options": {
@@ -963,7 +1145,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -972,38 +1155,13 @@
             ]
           }
         },
-        "overrides": [
-          {
-            "__systemRef": "hideSeriesFrom",
-            "matcher": {
-              "id": "byNames",
-              "options": {
-                "mode": "exclude",
-                "names": [
-                  "orderbook-pod-b596786cb-sm6c2"
-                ],
-                "prefix": "All except:",
-                "readOnly": true
-              }
-            },
-            "properties": [
-              {
-                "id": "custom.hideFrom",
-                "value": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": true
-                }
-              }
-            ]
-          }
-        ]
+        "overrides": []
       },
       "gridPos": {
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 44
+        "y": 60
       },
       "id": 10,
       "options": {
@@ -1051,7 +1209,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -1108,7 +1267,7 @@
         "h": 7,
         "w": 24,
         "x": 0,
-        "y": 52
+        "y": 68
       },
       "id": 9,
       "options": {

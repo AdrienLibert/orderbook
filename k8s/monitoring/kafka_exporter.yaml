@@ -22,6 +22,7 @@ spec:
             - "--kafka.server=bitnami-kafka.orderbook.svc.cluster.local:9092"
           ports:
             - name: metrics
+
               containerPort: 9308
           livenessProbe:
             httpGet:

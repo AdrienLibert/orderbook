@@ -57,16 +57,16 @@ stop_traderpool:
 
 build_grafana:
 	helm upgrade --install kube-prometheus-stack helm_charts/kube-prometheus-stack -n monitoring --create-namespace
-	helm install kafka-exporter prometheus-community/prometheus-kafka-exporter -n monitoring
-	kubectl apply -f k8s/monitoring/ -n monitoring
 
 start_grafana:
+	kubectl apply -f k8s/monitoring/ -n monitoring
 	kubectl port-forward svc/kube-prometheus-stack-grafana 3000:80 -n monitoring
 
 stop_grafana:
 	helm uninstall --ignore-not-found kube-prometheus-stack -n monitoring
-	helm uninstall --ignore-not-found kafka-exporter -n monitoring
 	kubectl delete --ignore-not-found pvc kube-prometheus-stack-grafana
+	kubectl delete --ignore-not-found svc kafka-exporter -n monitoring
+	kubectl delete --ignore-not-found svc node-exporter -n monitoring
 
 make start: start_kafka start_orderbook start_traderpool
 
