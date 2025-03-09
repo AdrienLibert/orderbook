@@ -185,9 +185,8 @@ func NewTrader(traderId string, limitPrice float64, quantity float64, kafkaClien
 		t.traderId, t.limitPrice, t.aggressivenessBuy, t.aggressivenessSell)
 
 	t._quoteTopic = "orders.topic"
-	t._tradeTopic = "order.status.topic"
+	t._tradeTopic = "trades.topic"
 	t._pricePointTopic = "order.last_price.topic"
-	fmt.Printf("trade")
 	return t
 }
 

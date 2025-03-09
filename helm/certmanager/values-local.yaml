@@ -1,0 +1,37 @@
+crds:
+  enabled: true
+
+resources:
+  requests:
+    memory: "16Mi"
+    cpu: "1m"
+  limits:
+    memory: "32Mi"
+    cpu: "5m"
+
+webhook:
+  resources:
+    requests:
+      memory: "16Mi"
+      cpu: "1m"
+    limits:
+      memory: "32Mi"
+      cpu: "5m"
+
+cainjector:
+  resources:
+    requests:
+      memory: "16Mi"
+      cpu: "1m"
+    limits:
+      memory: "32Mi"
+      cpu: "5m"
+
+startupapicheck:
+  resources:
+    requests:
+      memory: "16Mi"
+      cpu: "1m"
+    limits:
+      memory: "32Mi"
+      cpu: "5m"

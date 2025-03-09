@@ -1,0 +1,26 @@
+{
+    "type": "object",
+    "version": "1.0.0",
+    "metadata": {
+        "name": "trade",
+        "topic": "trades.topic"
+    },
+    "properties": {
+        "order_id": {
+            "type": "string"
+        },
+        "quantity": {
+            "type": "number"
+        },
+        "price": {  
+            "type": "number"
+        },
+        "action": {
+            "type": "string"
+        },
+        "status": {
+            "type": "string"
+        }
+    },
+    "required": ["order_id", "quantity", "price", "action","status"]
+  }
