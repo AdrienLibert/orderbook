@@ -4,7 +4,7 @@ kind: FlinkDeployment
 metadata:
   name: candle-bar
 spec:
-  image: local/flink:latest
+  image: local/flink-jobs:latest
   flinkVersion: v1_20
   flinkConfiguration:
     taskmanager.numberOfTaskSlots: "2"

@@ -14,8 +14,11 @@ build_orderbook:
 build_traderpool:
 	docker build --no-cache -t local/traderpool -f src/traderpool/Dockerfile src
 
-build_flink:
-	docker build -t local/flink -f src/flink/Dockerfile src/flink/
+build_flink_image:
+	docker build -t local/flink -f src/flink/Dockerfile.simple src/flink/
+
+build_flink_job:
+	docker build -t local/flink-jobs -f src/flink/Dockerfile src/flink/
 
 helm:
 	helm repo add bitnami https://charts.bitnami.com/bitnami
@@ -85,6 +88,18 @@ start_flink_custom_image:
 
 stop_flink_custom_image:
 	kubectl delete -f k8s/flink/example-custom-image.yaml --ignore-not-found
+
+start_flink_custom_job:
+	kubectl apply -f k8s/flink/example-custom-job.yaml
+
+stop_flink_custom_job:
+	kubectl delete -f k8s/flink/example-custom-job.yaml --ignore-not-found
+
+start_flink_candle_job:
+	kubectl apply -f k8s/flink/candle-bar-job.yaml
+
+stop_flink_candle_job:
+	kubectl delete -f k8s/flink/candle-bar-job.yaml --ignore-not-found
 
 start: start_kafka start_orderbook start_traderpool
 
