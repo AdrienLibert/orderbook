@@ -6,6 +6,9 @@
         "topic": "trades.topic"
     },
     "properties": {
+        "trade_id": {
+            "type": "string"
+        },
         "order_id": {
             "type": "string"
         },
@@ -22,5 +25,5 @@
             "type": "string"
         }
     },
-    "required": ["order_id", "quantity", "price", "action","status"]
+    "required": ["trade_id", "order_id", "quantity", "price", "action", "status"]
   }

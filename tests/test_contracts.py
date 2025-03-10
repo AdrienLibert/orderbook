@@ -18,6 +18,7 @@ valid_payload = {
     },
     "pricepoint": {"price": 10.0},
     "trade": {
+        "trade_id": "abc-123",
         "order_id": "abc-abc",
         "quantity": 10.0,
         "price": 10.0,
