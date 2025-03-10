@@ -21,11 +21,13 @@ helm:
 	helm repo add bitnami https://charts.bitnami.com/bitnami
 	helm repo add jetstack https://charts.jetstack.io
 	helm repo add flink-operator-repo https://downloads.apache.org/flink/flink-kubernetes-operator-1.10.0/
+	helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 	helm repo update
 
 clear_helm:
 	helm repo remove bitnami
 	helm repo remove jetstack
+	helm repo remove grafana
 
 start_infra:
 	kubectl apply -f k8s/namespaces.yaml
@@ -82,6 +84,20 @@ stop_flink_example:
 
 start_flink_custom_image:
 	kubectl apply -f k8s/flink/example-custom-image.yaml
+build_grafana:
+	helm upgrade --install kube-prometheus-stack helm_charts/kube-prometheus-stack -n monitoring --create-namespace
+
+start_grafana:
+	kubectl apply -f k8s/monitoring/ -n monitoring
+	kubectl port-forward svc/kube-prometheus-stack-grafana 3000:80 -n monitoring
+
+stop_grafana:
+	helm uninstall --ignore-not-found kube-prometheus-stack -n monitoring
+	kubectl delete --ignore-not-found pvc kube-prometheus-stack-grafana
+	kubectl delete --ignore-not-found svc kafka-exporter -n monitoring
+	kubectl delete --ignore-not-found svc node-exporter -n monitoring
+
+make start: start_kafka start_orderbook start_traderpool
 
 stop_flink_custom_image:
 	kubectl delete -f k8s/flink/example-custom-image.yaml --ignore-not-found
@@ -90,7 +106,7 @@ start: start_kafka start_orderbook start_traderpool
 
 stop: stop_kafka stop_orderbook stop_traderpool stop_kafkainit stop_flink_on_k8s
 
-dev: 
+dev:
 	uv pip install -r requirements-dev.txt --find-links $$PWD/src/drgn/dist/
 
 test:

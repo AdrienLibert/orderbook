@@ -1,4 +1,3 @@
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -17,11 +16,18 @@ spec:
         app: orderbook
     spec:
       containers:
-      - name: orderbook
-        image: local/orderbook:latest
-        imagePullPolicy: IfNotPresent
-        env:
-        - name: OB__KAFKA__BOOTSTRAP_SERVERS
-          value: bitnami-kafka:9092
-        - name: OB__KAFKA__SECURITY_PROTOCOL
-          value: PLAINTEXT
+        - name: orderbook
+          image: local/orderbook:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: OB__KAFKA__BOOTSTRAP_SERVERS
+              value: bitnami-kafka:9092
+            - name: OB__KAFKA__SECURITY_PROTOCOL
+              value: PLAINTEXT
+          resources:
+            requests:
+              cpu: "125m"
+              memory: "128Mi"
+            limits:
+              cpu: "250m"
+              memory: "256Mi"
