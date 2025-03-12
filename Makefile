@@ -85,10 +85,11 @@ stop_flink_example:
 start_flink_custom_image:
 	kubectl apply -f k8s/flink/example-custom-image.yaml
 build_grafana:
-	helm install kube-prometheus-stack prometheus-community/kube-prometheus-stack -n monitoring --create-namespace -f values.yaml
+	helm install kube-prometheus-stack prometheus-community/kube-prometheus-stack -n monitoring --create-namespace -f helm/grafana/values.yaml
 
 start_grafana:
-	kustomize build grafana-dashboard/ | kubectl apply -n monitoring -f -
+start_grafana:
+	docker run --rm -v $$(pwd):/app -w /app registry.k8s.io/kustomize/kustomize:v5.6.0 build grafana-dashboard/ | kubectl apply -n monitoring -f -
 	kubectl apply -f k8s/monitoring/ -n monitoring
 	kubectl port-forward svc/kube-prometheus-stack-grafana 3000:80 -n monitoring
 

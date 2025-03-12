@@ -1,0 +1,24 @@
+adminUser: admin
+adminPassword: admin
+
+admin:
+  existingSecret: ""
+  userKey: admin-user
+  passwordKey: admin-password
+
+persistence:
+  enabled: true
+  type: pvc
+  size: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: "standard"
+
+dashboardsConfigMaps:
+  default: grafana-dashboards
+
+sidecar:
+  dashboards:
+    enabled: true
+    label: grafana_dashboard
+    folder: /var/lib/grafana/dashboards
