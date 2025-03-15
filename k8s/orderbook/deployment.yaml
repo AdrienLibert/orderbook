@@ -26,8 +26,8 @@ spec:
               value: PLAINTEXT
           resources:
             requests:
-              cpu: "125m"
-              memory: "128Mi"
+              cpu: "50m"
+              memory: "64Mi"
             limits:
-              cpu: "250m"
-              memory: "256Mi"
+              cpu: "100m"
+              memory: "128Mi"

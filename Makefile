@@ -17,6 +17,10 @@ build_traderpool:
 build_flink:
 	docker build -t local/flink -f src/flink/Dockerfile src/flink/
 
+build_kustomize:
+	docker pull registry.k8s.io/kustomize/kustomize:v5.6.0
+	docker run --rm registry.k8s.io/kustomize/kustomize:v5.6.0
+
 helm:
 	helm repo add bitnami https://charts.bitnami.com/bitnami
 	helm repo add jetstack https://charts.jetstack.io
@@ -84,25 +88,23 @@ stop_flink_example:
 
 start_flink_custom_image:
 	kubectl apply -f k8s/flink/example-custom-image.yaml
-build_grafana:
-	helm install kube-prometheus-stack prometheus-community/kube-prometheus-stack -n monitoring --create-namespace -f helm/grafana/values.yaml
-
-start_grafana:
-start_grafana:
-	docker run --rm -v $$(pwd):/app -w /app registry.k8s.io/kustomize/kustomize:v5.6.0 build grafana-dashboard/ | kubectl apply -n monitoring -f -
-	kubectl apply -f k8s/monitoring/ -n monitoring
-	kubectl port-forward svc/kube-prometheus-stack-grafana 3000:80 -n monitoring
-
-stop_grafana:
-	helm uninstall --ignore-not-found kube-prometheus-stack -n monitoring
-	kubectl delete --ignore-not-found pvc kube-prometheus-stack-grafana
-	kubectl delete --ignore-not-found svc kafka-exporter -n monitoring
-	kubectl delete --ignore-not-found svc node-exporter -n monitoring
-
-make start: start_kafka start_orderbook start_traderpool
 
 stop_flink_custom_image:
 	kubectl delete -f k8s/flink/example-custom-image.yaml --ignore-not-found
+
+start_grafana: build_kustomize
+	kustomize build grafana-dashboard | kubectl apply -n monitoring -f -
+	helm install kube-prometheus-stack prometheus-community/kube-prometheus-stack -n monitoring --create-namespace -f helm/grafana/values.yaml
+	kubectl apply -f k8s/monitoring/ -n monitoring
+	kubectl port-forward svc/kube-prometheus-stack-grafana 3000:80 -n monitoring
+
+stop_grafana: build_kustomize
+	kustomize build grafana-dashboard| kubectl delete -n monitoring -f -
+	helm uninstall --ignore-not-found kube-prometheus-stack -n monitoring
+	kubectl delete --ignore-not-found pvc kube-prometheus-stack-grafana -n monitoring
+	kubectl delete --ignore-not-found svc kafka-exporter -n monitoring
+	kubectl delete --ignore-not-found deployment kafka-exporter -n monitoring
+	kubectl delete --ignore-not-found svc node-exporter -n monitoring
 
 start: start_kafka start_orderbook start_traderpool
 
