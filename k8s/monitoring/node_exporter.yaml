@@ -7,7 +7,7 @@ metadata:
     app: node-exporter
 spec:
   selector:
-    app.kubernetes.io/name: node-exporter
+    app: node-exporter
   ports:
     - name: metrics
       protocol: TCP
@@ -17,7 +17,7 @@ spec:
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: node-and-kafka-exporter-monitor
+  name: node-exporter-monitor
   namespace: monitoring
   labels:
     release: kube-prometheus-stack

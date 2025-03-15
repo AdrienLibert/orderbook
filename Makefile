@@ -89,23 +89,22 @@ stop_flink_example:
 start_flink_custom_image:
 	kubectl apply -f k8s/flink/example-custom-image.yaml
 
-build_grafana:
-	helm install kube-prometheus-stack prometheus-community/kube-prometheus-stack -n monitoring --create-namespace -f helm/grafana/values.yaml
+stop_flink_custom_image:
+	kubectl delete -f k8s/flink/example-custom-image.yaml --ignore-not-found
 
 start_grafana: build_kustomize
 	kustomize build grafana-dashboard | kubectl apply -n monitoring -f -
+	helm install kube-prometheus-stack prometheus-community/kube-prometheus-stack -n monitoring --create-namespace -f helm/grafana/values.yaml
 	kubectl apply -f k8s/monitoring/ -n monitoring
 	kubectl port-forward svc/kube-prometheus-stack-grafana 3000:80 -n monitoring
 
 stop_grafana: build_kustomize
 	kustomize build grafana-dashboard| kubectl delete -n monitoring -f -
 	helm uninstall --ignore-not-found kube-prometheus-stack -n monitoring
-	kubectl delete --ignore-not-found pvc kube-prometheus-stack-grafana
+	kubectl delete --ignore-not-found pvc kube-prometheus-stack-grafana -n monitoring
 	kubectl delete --ignore-not-found svc kafka-exporter -n monitoring
+	kubectl delete --ignore-not-found deployment kafka-exporter -n monitoring
 	kubectl delete --ignore-not-found svc node-exporter -n monitoring
-
-stop_flink_custom_image:
-	kubectl delete -f k8s/flink/example-custom-image.yaml --ignore-not-found
 
 start: start_kafka start_orderbook start_traderpool
 
