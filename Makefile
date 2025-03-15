@@ -99,7 +99,7 @@ start_grafana: build_kustomize
 	kubectl port-forward svc/kube-prometheus-stack-grafana 3000:80 -n monitoring
 
 stop_grafana: build_kustomize
-	kustomize build grafana-dashboard| kubectl delete -n monitoring -f -
+	kustomize build grafana-dashboard | kubectl delete -n monitoring -f -
 	helm uninstall --ignore-not-found kube-prometheus-stack -n monitoring
 	kubectl delete --ignore-not-found pvc kube-prometheus-stack-grafana -n monitoring
 	kubectl delete --ignore-not-found svc kafka-exporter -n monitoring
