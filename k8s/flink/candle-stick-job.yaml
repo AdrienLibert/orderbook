@@ -5,6 +5,7 @@ metadata:
   name: candle-stick-job
 spec:
   image: local/flink-jobs:latest
+  imagePullPolicy: IfNotPresent
   flinkVersion: v1_20
   flinkConfiguration:
     taskmanager.numberOfTaskSlots: "2"

@@ -4,17 +4,11 @@ import co.orderbook.streaming.models.Trade;
 import co.orderbook.streaming.models.TradeDeserializationSchema;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-// import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
-// import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.PrintSink;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
-// import org.apache.flink.streaming.api.windowing.time.Time;
-// import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
-// import java.util.Properties;
 import java.time.Duration;
 
 public class CandleStickJob {
@@ -23,7 +17,7 @@ public class CandleStickJob {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         KafkaSource<Trade> kafkaSource = KafkaSource.<Trade>builder()
-            .setBootstrapServers("bitnami-kafka:9092")
+            .setBootstrapServers("bitnami-kafka.orderbook:9092")
             .setTopics("trades.topic")
             .setGroupId("trade-consumer-flink-group")
             .setStartingOffsets(OffsetsInitializer.earliest())
@@ -37,8 +31,9 @@ public class CandleStickJob {
             .keyBy(Trade::getTrade_id)
             .window(TumblingProcessingTimeWindows.of(Duration.ofSeconds(5)))
             .reduce((trade1, trade2) -> {
+                // TODO: make it a real agregation, this is for kafka testing purposos
                 Trade aggregatedTrade = new Trade();
-                aggregatedTrade.setAction(trade1.getAction());
+                aggregatedTrade.setAction("AGGREGATED");
                 aggregatedTrade.setQuantity(trade1.getQuantity() + trade2.getQuantity());
                 aggregatedTrade.setPrice((trade1.getPrice() + trade2.getPrice()) / 2); // Average price
                 return aggregatedTrade;

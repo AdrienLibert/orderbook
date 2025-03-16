@@ -25,4 +25,16 @@ public class Trade implements Serializable {
     public void setAction(String action) { this.action = action; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+
+    // Prints
+    public String toString() {
+        return "{ " +
+                "\"trade_id\": \"" + trade_id + "\", " +
+                "\"order_id\": \"" + order_id + "\", " +
+                "\"quantity\": " + quantity + ", " +
+                "\"price\": " + price + ", " +
+                "\"action\": \"" + action + "\", " +
+                "\"status\": \"" + status + "\" " +
+                "}";
+    }
 }
