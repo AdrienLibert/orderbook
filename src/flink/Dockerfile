@@ -13,4 +13,4 @@ RUN cd /opt/flink/lib && \
 #  curl -sO https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-core/2.18.2/jackson-core-2.18.2.jar && \
 #  curl -sO https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-annotations/2.18.2/jackson-annotations-2.18.2.jar && \
 #  curl -sO https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.18.2/jackson-databind-2.18.2.jar
-COPY --from=build --chown=flink:flink target/hello-world-job-1.0.jar /opt/flink-jobs/hello-world-job-1.0.jar
+COPY --from=build --chown=flink:flink target/candle-stick-job-1.0.jar /opt/flink-jobs/candle-stick-job-1.0.jar

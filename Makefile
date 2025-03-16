@@ -96,10 +96,10 @@ stop_flink_custom_job:
 	kubectl delete -f k8s/flink/example-custom-job.yaml --ignore-not-found
 
 start_flink_candle_job:
-	kubectl apply -f k8s/flink/candle-bar-job.yaml
+	kubectl apply -f k8s/flink/candle-stick-job.yaml
 
 stop_flink_candle_job:
-	kubectl delete -f k8s/flink/candle-bar-job.yaml --ignore-not-found
+	kubectl delete -f k8s/flink/candle-stick-job.yaml --ignore-not-found
 
 start: start_kafka start_orderbook start_traderpool
 

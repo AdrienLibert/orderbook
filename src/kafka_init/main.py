@@ -104,7 +104,6 @@ class KafkaTopicSynchronizer:
 def main():
     config = load_yaml(env_config["kafka"]["topics_config"])
     topics_config = [TopicConfig(topic) for topic in config["topics"]] if config else []
-
     admin_client = AdminClient(kafka_config)
     topic_manager = KafkaTopicSynchronizer(admin_client, topics_config)
     topic_manager.run()
