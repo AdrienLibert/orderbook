@@ -20,15 +20,21 @@ build_flink_image:
 build_flink_job:
 	docker build -t local/flink-jobs -f src/flink/Dockerfile src/flink/
 
+build_kustomize:
+	docker pull registry.k8s.io/kustomize/kustomize:v5.6.0
+	docker run --rm registry.k8s.io/kustomize/kustomize:v5.6.0
+
 helm:
 	helm repo add bitnami https://charts.bitnami.com/bitnami
 	helm repo add jetstack https://charts.jetstack.io
 	helm repo add flink-operator-repo https://downloads.apache.org/flink/flink-kubernetes-operator-1.10.0/
+	helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 	helm repo update
 
 clear_helm:
 	helm repo remove bitnami
 	helm repo remove jetstack
+	helm repo remove grafana
 
 start_infra:
 	kubectl apply -f k8s/namespaces.yaml
@@ -58,7 +64,7 @@ stop_orderbook:
 	kubectl delete -f k8s/orderbook/ --ignore-not-found
 
 start_traderpool:
-	kubectl apply -f k8s/namespace.yaml
+	kubectl apply -f k8s/namespaces.yaml
 	kubectl apply -f k8s/traderpool/
 
 stop_traderpool:
@@ -100,12 +106,26 @@ start_flink_candle_job:
 
 stop_flink_candle_job:
 	kubectl delete -f k8s/flink/candle-stick-job.yaml --ignore-not-found
+	
+start_grafana: build_kustomize
+	kustomize build grafana-dashboard | kubectl apply -n monitoring -f -
+	helm install kube-prometheus-stack prometheus-community/kube-prometheus-stack -n monitoring --create-namespace -f helm/grafana/values.yaml
+	kubectl apply -f k8s/monitoring/ -n monitoring
+	kubectl port-forward svc/kube-prometheus-stack-grafana 3000:80 -n monitoring
+
+stop_grafana: build_kustomize
+	kustomize build grafana-dashboard | kubectl delete -n monitoring -f -
+	helm uninstall --ignore-not-found kube-prometheus-stack -n monitoring
+	kubectl delete --ignore-not-found pvc kube-prometheus-stack-grafana -n monitoring
+	kubectl delete --ignore-not-found svc kafka-exporter -n monitoring
+	kubectl delete --ignore-not-found deployment kafka-exporter -n monitoring
+	kubectl delete --ignore-not-found svc node-exporter -n monitoring
 
 start: start_kafka start_orderbook start_traderpool
 
 stop: stop_kafka stop_orderbook stop_traderpool stop_kafkainit stop_flink_on_k8s
 
-dev: 
+dev:
 	uv pip install -r requirements-dev.txt --find-links $$PWD/src/drgn/dist/
 
 test:
