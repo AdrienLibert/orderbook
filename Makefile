@@ -14,8 +14,11 @@ build_orderbook:
 build_traderpool:
 	docker build --no-cache -t local/traderpool -f src/traderpool/Dockerfile src
 
-build_flink:
-	docker build -t local/flink -f src/flink/Dockerfile src/flink/
+build_flink_image:
+	docker build -t local/flink -f src/flink/Dockerfile.simple src/flink/
+
+build_flink_job:
+	docker build -t local/flink-jobs -f src/flink/Dockerfile src/flink/
 
 build_kustomize:
 	docker pull registry.k8s.io/kustomize/kustomize:v5.6.0
@@ -92,6 +95,18 @@ start_flink_custom_image:
 stop_flink_custom_image:
 	kubectl delete -f k8s/flink/example-custom-image.yaml --ignore-not-found
 
+start_flink_custom_job:
+	kubectl apply -f k8s/flink/example-custom-job.yaml
+
+stop_flink_custom_job:
+	kubectl delete -f k8s/flink/example-custom-job.yaml --ignore-not-found
+
+start_flink_candle_job:
+	kubectl apply -f k8s/flink/candle-stick-job.yaml
+
+stop_flink_candle_job:
+	kubectl delete -f k8s/flink/candle-stick-job.yaml --ignore-not-found
+	
 start_grafana: build_kustomize
 	kustomize build grafana-dashboard | kubectl apply -n monitoring -f -
 	helm install kube-prometheus-stack prometheus-community/kube-prometheus-stack -n monitoring --create-namespace -f helm/grafana/values.yaml

@@ -2,6 +2,7 @@
 # Feel free to edit values / whatever for your testing purposes
 from confluent_kafka import Producer
 from datetime import datetime, timezone
+from functools import partial
 
 from drgn.kafka import kafka_config
 
@@ -11,17 +12,12 @@ import time
 import random
 import argparse
 
-# defined in topics_config.yaml. if changed, need to rebuild the image.
-TOPIC = "orders.topic"
-
 
 def delivery(err, msg):
     print(f"INFO: {msg.value()}")
 
 
-def produce_buy_order(
-    producer: Producer, min_quantity: int = -50, max_quantity: int = 50
-):
+def produce_order(producer: Producer, min_quantity: int = -50, max_quantity: int = 50):
     qty = random.randint(int(min_quantity), int(max_quantity))
     msg = {
         "order_id": str(uuid.uuid4()),
@@ -33,12 +29,45 @@ def produce_buy_order(
         ),  # nanosecond
     }
 
-    producer.produce(TOPIC, bytes(json.dumps(msg), "utf-8"), on_delivery=delivery)
+    producer.produce(
+        "order.topic", bytes(json.dumps(msg), "utf-8"), on_delivery=delivery
+    )
+    producer.poll()
+
+
+def produce_trade(producer: Producer):
+    trade_id = str(uuid.uuid4())
+    qty = random.randint(10, 50)
+    price = random.uniform(40.0, 45.0)
+    trade_left = {
+        "trade_id": trade_id,
+        "order_id": str(uuid.uuid4()),
+        "quantity": qty,
+        "price": price,
+        "action": "BUY",
+        "status": "PARTIAL",
+    }
+    trade_right = {
+        "trade_id": trade_id,
+        "order_id": str(uuid.uuid4()),
+        "quantity": qty,
+        "price": price,
+        "action": "SELL",
+        "status": "PARTIAL",
+    }
+    producer.produce(
+        "trades.topic", bytes(json.dumps(trade_left), "utf-8"), on_delivery=delivery
+    )
+    producer.poll()
+    producer.produce(
+        "trades.topic", bytes(json.dumps(trade_right), "utf-8"), on_delivery=delivery
+    )
     producer.poll()
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("--model", dest="model", default="order")
     parser.add_argument(
         "--wait-for-input", dest="wait_for_input", default=False, action="store_true"
     )
@@ -48,9 +77,15 @@ if __name__ == "__main__":
 
     producer = Producer(kafka_config)
 
+    func = (
+        partial(produce_order, producer, args.min_quantity, args.max_quantity)
+        if args.model == "order"
+        else partial(produce_trade, producer)
+    )
+
     count = 0
     while True:
-        produce_buy_order(producer, args.min_quantity, args.max_quantity)
+        func()
         if args.wait_for_input:
             _ = input()
         else:

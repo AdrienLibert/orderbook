@@ -2,9 +2,10 @@
 apiVersion: flink.apache.org/v1beta1
 kind: FlinkDeployment
 metadata:
-  name: custom-image
+  name: candle-stick-job
 spec:
-  image: local/flink:latest
+  image: local/flink-jobs:latest
+  imagePullPolicy: IfNotPresent
   flinkVersion: v1_20
   flinkConfiguration:
     taskmanager.numberOfTaskSlots: "2"
@@ -12,12 +13,12 @@ spec:
   jobManager:
     resource:
       memory: "2048m"
-      cpu: 0.5
+      cpu: 1
   taskManager:
     resource:
       memory: "2048m"
-      cpu: 0.5
+      cpu: 1
   job:
-    jarURI: local:///opt/flink/examples/streaming/StateMachineExample.jar
-    parallelism: 1
+    jarURI: local:///opt/flink-jobs/candle-stick-job-1.0.jar
+    parallelism: 2
     upgradeMode: stateless

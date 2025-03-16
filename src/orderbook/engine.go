@@ -7,6 +7,7 @@ import (
 	"os/signal"
 
 	"github.com/IBM/sarama"
+	"github.com/google/uuid"
 )
 
 type MatchingEngine struct {
@@ -152,8 +153,9 @@ func (me *MatchingEngine) Process(inOrder *Order, producerChannel chan<- Trade, 
 			outOrder.Quantity -= tradeQuantity
 
 			if producerChannel != nil {
-				producerChannel <- createTrade(inOrder, tradeQuantity, price, action)
-				producerChannel <- createTrade(outOrder, tradeQuantity, price, action) // TODO: action is opposite for out order
+				tradeId := uuid.New().String()
+				producerChannel <- createTrade(tradeId, inOrder, tradeQuantity, price, action)
+				producerChannel <- createTrade(tradeId, outOrder, tradeQuantity, price, action) // TODO: action is opposite for out order
 			}
 			if pricePointChannel != nil {
 				pricePointChannel <- createPricePoint(price)

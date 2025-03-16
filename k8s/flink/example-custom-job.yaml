@@ -1,10 +1,9 @@
----
 apiVersion: flink.apache.org/v1beta1
 kind: FlinkDeployment
 metadata:
-  name: candle-bar
+  name: custom-job
 spec:
-  image: local/flink:latest
+  image: local/flink-jobs:latest
   flinkVersion: v1_20
   flinkConfiguration:
     taskmanager.numberOfTaskSlots: "2"
@@ -12,12 +11,12 @@ spec:
   jobManager:
     resource:
       memory: "2048m"
-      cpu: 1
+      cpu: 0.5
   taskManager:
     resource:
       memory: "2048m"
-      cpu: 1
+      cpu: 0.5
   job:
-    jarURI: local:///opt/flink/jobs/CandleBar.jar
-    parallelism: 2
+    jarURI: local:///opt/flink-jobs/hello-world-job-1.0.jar
+    parallelism: 1
     upgradeMode: stateless
