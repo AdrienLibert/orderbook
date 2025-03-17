@@ -34,7 +34,8 @@ helm:
 clear_helm:
 	helm repo remove bitnami
 	helm repo remove jetstack
-	helm repo remove grafana
+	helm repo remove flink-operator-repo
+	helm repo remove prometheus-community
 
 start_infra:
 	kubectl apply -f k8s/namespaces.yaml
@@ -106,7 +107,7 @@ start_flink_candle_job:
 
 stop_flink_candle_job:
 	kubectl delete -f k8s/flink/candle-stick-job.yaml --ignore-not-found
-	
+
 start_grafana: build_kustomize
 	kustomize build grafana-dashboard | kubectl apply -n monitoring -f -
 	helm install kube-prometheus-stack prometheus-community/kube-prometheus-stack -n monitoring --create-namespace -f helm/grafana/values.yaml
@@ -120,6 +121,12 @@ stop_grafana: build_kustomize
 	kubectl delete --ignore-not-found svc kafka-exporter -n monitoring
 	kubectl delete --ignore-not-found deployment kafka-exporter -n monitoring
 	kubectl delete --ignore-not-found svc node-exporter -n monitoring
+
+start_kdb:
+	helm install my-influxdb bitnami/influxdb -f helm/influxdb/values.yaml
+
+stop_kdb:
+	helm uninstall my-influxdb
 
 start: start_kafka start_orderbook start_traderpool
 
