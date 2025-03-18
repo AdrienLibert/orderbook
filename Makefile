@@ -25,7 +25,7 @@ build_kustomize:
 	docker run --rm registry.k8s.io/kustomize/kustomize:v5.6.0
 
 build_kdb:
-	helm install my-influxdb bitnami/influxdb -n analytics --create-namespace -f helm/influxdb/values.yaml
+	helm install my-influxdb bitnami/influxdb -n analytics -f helm/influxdb/values.yaml
 
 helm:
 	helm repo add bitnami https://charts.bitnami.com/bitnami
@@ -131,7 +131,7 @@ start_kdb:
 stop_kdb:
 	helm uninstall my-influxdb -n analytics
 
-start: start_kafka start_orderbook start_traderpool
+start: start_kafka start_orderbook start_traderpool start_kdb
 
 stop: stop_kafka stop_orderbook stop_traderpool stop_kafkainit stop_flink_on_k8s
 
