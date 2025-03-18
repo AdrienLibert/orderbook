@@ -1,5 +1,5 @@
 # Build all images
-build: build_drgn build_kafkainit build_orderbook build_traderpool
+build: build_drgn build_kafkainit build_orderbook build_traderpool build_kdb
 
 build_drgn:
 	cd src/drgn && \
@@ -23,6 +23,9 @@ build_flink_job:
 build_kustomize:
 	docker pull registry.k8s.io/kustomize/kustomize:v5.6.0
 	docker run --rm registry.k8s.io/kustomize/kustomize:v5.6.0
+
+build_kdb:
+	helm install my-influxdb bitnami/influxdb -n analytics --create-namespace -f helm/influxdb/values.yaml
 
 helm:
 	helm repo add bitnami https://charts.bitnami.com/bitnami
@@ -123,7 +126,6 @@ stop_grafana: build_kustomize
 	kubectl delete --ignore-not-found svc node-exporter -n monitoring
 
 start_kdb:
-	helm install my-influxdb bitnami/influxdb -n analytics --create-namespace -f helm/influxdb/values.yaml
 	kubectl port-forward svc/my-influxdb 8086:8086 -n analytics
 
 stop_kdb:
