@@ -18,12 +18,18 @@ spec:
         imagePullPolicy: IfNotPresent
         command: ["python3", "entrypoint.py", "--init-orderbook"]
         env:
-        - name: OB__KAFKA__TOPICS_CONFIG
-          value: /app/topics_config.yaml
+        - name: OB__ORDERBOOK__MID_PRICE
+          value: "50.0"
+        - name: OB__ORDERBOOK__SPREAD
+          value: "1.0"
+        - name: OB__ORDERBOOK__QUANTITY
+          value: "100"
         - name: OB__KAFKA__BOOTSTRAP_SERVERS
           value: bitnami-kafka:9092
         - name: OB__KAFKA__SECURITY_PROTOCOL
           value: PLAINTEXT
         - name: CONFIG_PATH
           value: /app/task.conf
+        - name: PYTHONUNBUFFERED
+          value: "1"
       restartPolicy: Never

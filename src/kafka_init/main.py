@@ -140,12 +140,12 @@ class ColdStartOrders:
         }
 
         self.producer.produce(
-            "order.topic", bytes(json.dumps(buy_order), "utf-8"), on_delivery=delivery
+            "orders.topic", bytes(json.dumps(buy_order), "utf-8"), on_delivery=delivery
         )
         self.producer.poll()
 
         self.producer.produce(
-            "order.topic", bytes(json.dumps(sell_order), "utf-8"), on_delivery=delivery
+            "orders.topic", bytes(json.dumps(sell_order), "utf-8"), on_delivery=delivery
         )
         self.producer.poll()
 
@@ -158,6 +158,13 @@ class ColdStartOrders:
 
 def main(script: str = "init_topics"):
     admin_client = AdminClient(kafka_config)
+
+    try:
+        topics = admin_client.list_topics(timeout=1.0).topics
+    except Exception as e:
+        print(f"Kafka not ready: {e}")
+        exit(1)
+
     if script == "init_topics":
         config = load_yaml(env_config["kafka"]["topics_config"])
         topic_configs = (
@@ -170,9 +177,9 @@ def main(script: str = "init_topics"):
         sleep = 1.0
         retries = 10
         while retries:
-            topics = admin_client.list_topics().topics
+            topics = admin_client.list_topics(timeout=1.0).topics
             print(f"Topics are: {topics}")
-            if "order.topic" in topics:
+            if "orders.topic" in topics.keys():
                 mid_price = float(env_config["orderbook"]["mid_price"])
                 spread = float(env_config["orderbook"]["spread"])
                 quantity = int(env_config["orderbook"]["quantity"])
