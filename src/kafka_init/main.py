@@ -1,5 +1,11 @@
+import json
+import time
+import uuid
 import yaml
+
+from confluent_kafka import Producer
 from confluent_kafka.admin import AdminClient, NewTopic, TopicMetadata
+from datetime import datetime, timezone
 from enum import StrEnum
 from drgn.config import env_config
 from drgn.kafka import kafka_config
@@ -8,6 +14,10 @@ from drgn.kafka import kafka_config
 def load_yaml(path: str) -> dict:
     with open(path, "r") as file:
         return yaml.safe_load(file)
+
+
+def delivery(err, msg):
+    print(f"INFO: {msg.value()}")
 
 
 class TopicConfig:
@@ -101,9 +111,78 @@ class KafkaTopicSynchronizer:
         print(f"topic '{topic}' deleted successfully.")
 
 
-def main():
-    config = load_yaml(env_config["kafka"]["topics_config"])
-    topics_config = [TopicConfig(topic) for topic in config["topics"]] if config else []
+class ColdStartOrders:
+
+    def __init__(
+        self, producer: Producer, mid_price: float, spread: float, quantity: int
+    ):
+        self.quantity = quantity
+        self.producer = producer
+
+        self._starting_bid = mid_price - spread / 2
+        self._starting_ask = mid_price + spread / 2
+
+    def produce_orders(self):
+        now = int(datetime.now(timezone.utc).timestamp() * 1000000000)
+        buy_order = {
+            "order_id": str(uuid.uuid4()),
+            "order_type": "limit",
+            "price": self._starting_bid,
+            "quantity": self.quantity,
+            "timestamp": now,
+        }
+        sell_order = {
+            "order_id": str(uuid.uuid4()),
+            "order_type": "limit",
+            "price": self._starting_ask,
+            "quantity": -self.quantity,
+            "timestamp": now,
+        }
+
+        self.producer.produce(
+            "order.topic", bytes(json.dumps(buy_order), "utf-8"), on_delivery=delivery
+        )
+        self.producer.poll()
+
+        self.producer.produce(
+            "order.topic", bytes(json.dumps(sell_order), "utf-8"), on_delivery=delivery
+        )
+        self.producer.poll()
+
+    def run(self):
+        print(
+            f"Creating initial orders with parameters: quantity {self.quantity} - best bid {self._starting_bid} - best ask {self._starting_ask}"
+        )
+        self.produce_orders()
+
+
+def main(script: str = "init_topics"):
     admin_client = AdminClient(kafka_config)
-    topic_manager = KafkaTopicSynchronizer(admin_client, topics_config)
-    topic_manager.run()
+    if script == "init_topics":
+        config = load_yaml(env_config["kafka"]["topics_config"])
+        topic_configs = (
+            [TopicConfig(topic) for topic in config["topics"]] if config else []
+        )
+        topic_manager = KafkaTopicSynchronizer(admin_client, topic_configs)
+        topic_manager.run()
+
+    if script == "init_orderbook":
+        sleep = 1.0
+        retries = 10
+        while retries:
+            topics = admin_client.list_topics().topics
+            print(f"Topics are: {topics}")
+            if "order.topic" in topics:
+                mid_price = float(env_config["orderbook"]["mid_price"])
+                spread = float(env_config["orderbook"]["spread"])
+                quantity = int(env_config["orderbook"]["quantity"])
+                producer = Producer(kafka_config)
+                cold_start_producer = ColdStartOrders(
+                    producer, mid_price, spread, quantity
+                )
+                cold_start_producer.run()
+                break
+
+            time.sleep(sleep)
+            sleep *= 1.5  # exp backoff
+            retries -= 1

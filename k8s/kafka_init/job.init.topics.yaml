@@ -4,7 +4,7 @@ kind: Job
 metadata:
   labels:
     app: kafka-init
-  name: kafka-init-job
+  name: kafka-init-topics-job
   namespace: orderbook
 spec:
   template:
@@ -13,9 +13,10 @@ spec:
         app: kafka-init
     spec:
       containers:
-      - name: kafka-init
+      - name: kafka-init-topics
         image: local/kafka-init
         imagePullPolicy: IfNotPresent
+        command: ["python3", "entrypoint.py", "--init-topics"]
         env:
         - name: OB__KAFKA__TOPICS_CONFIG
           value: /app/topics_config.yaml
