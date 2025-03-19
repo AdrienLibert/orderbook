@@ -1,5 +1,5 @@
 # Build all images
-build: build_drgn build_kafkainit build_orderbook build_traderpool build_kdb
+build: build_drgn build_kafkainit build_orderbook build_traderpool build_influxdb
 
 build_drgn:
 	cd src/drgn && \
@@ -24,7 +24,7 @@ build_kustomize:
 	docker pull registry.k8s.io/kustomize/kustomize:v5.6.0
 	docker run --rm registry.k8s.io/kustomize/kustomize:v5.6.0
 
-build_kdb:
+build_influxdb:
 	helm install my-influxdb bitnami/influxdb -n analytics -f helm/influxdb/values.yaml
 
 helm:
@@ -125,15 +125,15 @@ stop_grafana: build_kustomize
 	kubectl delete --ignore-not-found deployment kafka-exporter -n monitoring
 	kubectl delete --ignore-not-found svc node-exporter -n monitoring
 
-start_kdb:
+start_influxdb:
 	kubectl port-forward svc/my-influxdb 8086:8086 -n analytics
 
-stop_kdb:
+stop_influxdb:
 	helm uninstall my-influxdb -n analytics
 
-start: start_kafka start_orderbook start_traderpool start_kdb
+start: start_kafka start_orderbook start_traderpool start_influxdb
 
-stop: stop_kafka stop_orderbook stop_traderpool stop_kafkainit stop_flink_on_k8s
+stop: stop_kafka stop_orderbook stop_traderpool stop_kafkainit stop_flink_on_k8s stop_influxdb
 
 dev:
 	uv pip install -r requirements-dev.txt --find-links $$PWD/src/drgn/dist/
