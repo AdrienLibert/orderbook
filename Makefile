@@ -1,5 +1,5 @@
 # Build all images
-build: build_drgn build_kafkainit build_orderbook build_traderpool build_kdb
+build: build_drgn build_kafkainit build_orderbook build_traderpool
 
 build_drgn:
 	cd src/drgn && \
@@ -24,9 +24,6 @@ build_kustomize:
 	docker pull registry.k8s.io/kustomize/kustomize:v5.6.0
 	docker run --rm registry.k8s.io/kustomize/kustomize:v5.6.0
 
-build_kdb:
-	helm install my-influxdb bitnami/influxdb -n analytics -f helm/influxdb/values.yaml
-
 helm:
 	helm repo add bitnami https://charts.bitnami.com/bitnami
 	helm repo add jetstack https://charts.jetstack.io
@@ -37,8 +34,7 @@ helm:
 clear_helm:
 	helm repo remove bitnami
 	helm repo remove jetstack
-	helm repo remove flink-operator-repo
-	helm repo remove prometheus-community
+	helm repo remove grafana
 
 start_infra:
 	kubectl apply -f k8s/namespaces.yaml
@@ -75,12 +71,12 @@ stop_traderpool:
 	kubectl delete -f k8s/traderpool/ --ignore-not-found
 
 start_flink_on_k8s: start_infra
-	helm install cert-manager jetstack/cert-manager --namespace analytics --version v1.17.1 -f helm/certmanager/values-local.yaml
-	helm install flink-kubernetes-operator flink-operator-repo/flink-kubernetes-operator --namespace analytics --version 1.10.0 -f helm/flink-kubernetes-operator/values-local.yaml
+	helm install cert-manager jetstack/cert-manager --namespace flink --version v1.17.1 -f helm/certmanager/values-local.yaml
+	helm install flink-kubernetes-operator flink-operator-repo/flink-kubernetes-operator --namespace flink --version 1.10.0 -f helm/flink-kubernetes-operator/values-local.yaml
 
 stop_flink_on_k8s:
-	helm uninstall --ignore-not-found cert-manager -n analytics
-	helm uninstall --ignore-not-found flink-kubernetes-operator -n analytics
+	helm uninstall --ignore-not-found cert-manager -n flink
+	helm uninstall --ignore-not-found flink-kubernetes-operator -n flink
 	kubectl delete crd issuers.cert-manager.io clusterissuers.cert-manager.io certificates.cert-manager.io certificaterequests.cert-manager.io orders.acme.cert-manager.io challenges.acme.cert-manager.io  --ignore-not-found
 	kubectl delete crd flinkclusters.flinkoperator.k8s.io --ignore-not-found
 	kubectl delete secret webhook-server-cert -n flink --ignore-not-found
@@ -110,10 +106,10 @@ start_flink_candle_job:
 
 stop_flink_candle_job:
 	kubectl delete -f k8s/flink/candle-stick-job.yaml --ignore-not-found
-
+	
 start_grafana: build_kustomize
 	kustomize build grafana-dashboard | kubectl apply -n monitoring -f -
-	helm install kube-prometheus-stack prometheus-community/kube-prometheus-stack -n monitoring -f helm/grafana/values.yaml
+	helm install kube-prometheus-stack prometheus-community/kube-prometheus-stack -n monitoring --create-namespace -f helm/grafana/values.yaml
 	kubectl apply -f k8s/monitoring/ -n monitoring
 	kubectl port-forward svc/kube-prometheus-stack-grafana 3000:80 -n monitoring
 
@@ -125,13 +121,7 @@ stop_grafana: build_kustomize
 	kubectl delete --ignore-not-found deployment kafka-exporter -n monitoring
 	kubectl delete --ignore-not-found svc node-exporter -n monitoring
 
-start_kdb:
-	kubectl port-forward svc/my-influxdb 8086:8086 -n analytics
-
-stop_kdb:
-	helm uninstall my-influxdb -n analytics
-
-start: start_kafka start_orderbook start_traderpool start_kdb
+start: start_kafka start_orderbook start_traderpool
 
 stop: stop_kafka stop_orderbook stop_traderpool stop_kafkainit stop_flink_on_k8s
 

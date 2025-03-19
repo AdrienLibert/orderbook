@@ -98,19 +98,3 @@ pip install uv==0.5.2
 make build_drgn
 uv pip install -r requirements-dev.txt --find-links $PWD/src/drgn/dist/
 ```
-
-Install influxdb-client
-```
-sudo apt install influxdb-client=2.7.1
-```
-
-Install influxdb helm chart and start to listen on 8086 port
-```
-make build_kdb
-make start_kdb
-```
-
-Connect to influxdb-client when the pod running
-```
-influx -username admin -password admin
-```
