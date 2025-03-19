@@ -133,7 +133,7 @@ stop_influxdb:
 
 start: start_kafka start_orderbook start_traderpool start_influxdb
 
-stop: stop_kafka stop_orderbook stop_traderpool stop_kafkainit stop_flink_on_k8s
+stop: stop_kafka stop_orderbook stop_traderpool stop_kafkainit stop_flink_on_k8s stop_influxdb
 
 dev:
 	uv pip install -r requirements-dev.txt --find-links $$PWD/src/drgn/dist/
