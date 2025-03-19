@@ -7,4 +7,9 @@ metadata:
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: flink
+  name: analytics
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring

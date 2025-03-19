@@ -1,1 +1,3 @@
-watchNamespaces: ["flink"]
+watchNamespaces: ["analytics"]
+webhook:
+  create: false
