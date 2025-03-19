@@ -106,8 +106,8 @@ sudo apt install influxdb-client=2.7.1
 
 Install influxdb helm chart and start to listen on 8086 port
 ```
-make build_kdb
-make start_kdb
+make build_influxdb
+make start_influxdb
 ```
 
 Connect to influxdb-client when the pod running
