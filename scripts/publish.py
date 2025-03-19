@@ -30,7 +30,7 @@ def produce_order(producer: Producer, min_quantity: int = -50, max_quantity: int
     }
 
     producer.produce(
-        "order.topic", bytes(json.dumps(msg), "utf-8"), on_delivery=delivery
+        "orders.topic", bytes(json.dumps(msg), "utf-8"), on_delivery=delivery
     )
     producer.poll()
 
