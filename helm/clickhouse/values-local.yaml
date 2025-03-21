@@ -1,0 +1,10 @@
+clickhouse:
+  installation:
+    name: my-clickhouse
+    namespace: analytic
+
+    configuration:
+      zookeeper:
+        nodes:
+          - host: my-zookeeper
+            port: 2181
