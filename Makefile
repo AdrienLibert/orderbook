@@ -75,17 +75,11 @@ stop_traderpool:
 	kubectl delete -f k8s/traderpool/ --ignore-not-found
 
 start_flink_on_k8s: start_infra
-	helm install cert-manager jetstack/cert-manager --namespace analytics --version v1.17.1 -f helm/certmanager/values-local.yaml
-	helm install flink-kubernetes-operator flink-operator-repo/flink-kubernetes-operator --namespace analytics --version 1.10.0 -f helm/flink-kubernetes-operator/values-local.yaml
+	helm install flink-kubernetes-operator flink-operator-repo/flink-kubernetes-operator --namespace analytics --version 1.10.0 -f helm/flink-k8s-operator/values-local.yaml
 
 stop_flink_on_k8s:
-	helm uninstall --ignore-not-found cert-manager -n analytics
 	helm uninstall --ignore-not-found flink-kubernetes-operator -n analytics
-	kubectl delete crd issuers.cert-manager.io clusterissuers.cert-manager.io certificates.cert-manager.io certificaterequests.cert-manager.io orders.acme.cert-manager.io challenges.acme.cert-manager.io  --ignore-not-found
 	kubectl delete crd flinkclusters.flinkoperator.k8s.io --ignore-not-found
-	kubectl delete secret webhook-server-cert -n flink --ignore-not-found
-	kubectl delete secret cert-manager-webhook-ca -n flink --ignore-not-found
-	kubectl delete job cert-manager-startupapicheck -n flink --ignore-not-found
 
 start_flink_example:
 	kubectl apply -f k8s/flink/example-deployment.yaml
