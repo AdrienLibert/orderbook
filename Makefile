@@ -121,7 +121,7 @@ stop_grafana: build_kustomize
 start_db:
 	helm install clickhouse-operator clickhouse-operator/altinity-clickhouse-operator -n analytic
 	helm install my-zookeeper bitnami/zookeeper -n analytic
-	helm install my-clickhouse altinity-charts/clickhouse -n analytic  -f helm/clickhouse/values-local.yaml
+	helm install my-clickhouse -n analytic -f helm/clickhouse/values-local.yaml altinity-charts/clickhouse
 	kubectl port-forward -n analytic pod/chi-my-clickhouse-my-clickhouse-0-0-0 9000:9000
 
 start_db_client:
@@ -132,7 +132,6 @@ stop_db:
 	helm uninstall --ignore-not-found my-zookeeper -n analytic
 	helm uninstall --ignore-not-found my-clickhouse -n analytic
 	kubectl delete --ignore-not-found pvc data-my-zookeeper-0 -n analytic
-	kubectl delete --ignore-not-found pvc my-clickhouse-data-chi-my-clickhouse-my-clickhouse-0-0-0 -n analytic
 
 start: start_kafka start_orderbook start_traderpool start_db
 
