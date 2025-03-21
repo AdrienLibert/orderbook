@@ -1,5 +1,5 @@
 # Build all images
-build: build_drgn build_kafkainit build_orderbook build_traderpool build_influxdb
+build: build_drgn build_kafkainit build_orderbook build_traderpool
 
 build_drgn:
 	cd src/drgn && \
@@ -24,14 +24,13 @@ build_kustomize:
 	docker pull registry.k8s.io/kustomize/kustomize:v5.6.0
 	docker run --rm registry.k8s.io/kustomize/kustomize:v5.6.0
 
-build_influxdb:
-	helm install my-influxdb bitnami/influxdb -n analytics -f helm/influxdb/values.yaml
-
 helm:
 	helm repo add bitnami https://charts.bitnami.com/bitnami
 	helm repo add jetstack https://charts.jetstack.io
 	helm repo add flink-operator-repo https://downloads.apache.org/flink/flink-kubernetes-operator-1.10.0/
 	helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+	helm repo add clickhouse-operator https://docs.altinity.com/clickhouse-operator/
+	helm repo add altinity-charts https://altinity.github.io/helm-charts/
 	helm repo update
 
 clear_helm:
@@ -106,28 +105,38 @@ stop_flink_candle_job:
 	kubectl delete -f k8s/flink/candle-stick-job.yaml --ignore-not-found
 
 start_grafana: build_kustomize
-	kustomize build grafana-dashboard | kubectl apply -n monitoring -f -
-	helm install kube-prometheus-stack prometheus-community/kube-prometheus-stack -n monitoring -f helm/grafana/values.yaml
+	kustomize build src/grafana-dashboard | kubectl apply -n monitoring -f -
+	helm install kube-prometheus-stack prometheus-community/kube-prometheus-stack -n monitoring -f helm/grafana/values-local.yaml
 	kubectl apply -f k8s/monitoring/ -n monitoring
 	kubectl port-forward svc/kube-prometheus-stack-grafana 3000:80 -n monitoring
 
 stop_grafana: build_kustomize
-	kustomize build grafana-dashboard | kubectl delete -n monitoring -f -
+	kustomize build src/grafana-dashboard | kubectl delete -n monitoring -f -
 	helm uninstall --ignore-not-found kube-prometheus-stack -n monitoring
 	kubectl delete --ignore-not-found pvc kube-prometheus-stack-grafana -n monitoring
 	kubectl delete --ignore-not-found svc kafka-exporter -n monitoring
 	kubectl delete --ignore-not-found deployment kafka-exporter -n monitoring
 	kubectl delete --ignore-not-found svc node-exporter -n monitoring
 
-start_influxdb:
-	kubectl port-forward svc/my-influxdb 8086:8086 -n analytics
+start_db:
+	helm install clickhouse-operator clickhouse-operator/altinity-clickhouse-operator -n analytic
+	helm install my-zookeeper bitnami/zookeeper -n analytic
+	helm install my-clickhouse altinity-charts/clickhouse -n analytic  -f helm/clickhouse/values-local.yaml
+	kubectl port-forward -n analytic pod/chi-my-clickhouse-my-clickhouse-0-0-0 9000:9000
 
-stop_influxdb:
-	helm uninstall my-influxdb -n analytics
+start_db_client:
+	kubectl exec -n clickhouse -it chi-my-clickhouse-my-clickhouse-0-0-0 -- clickhouse-client
 
-start: start_kafka start_orderbook start_traderpool start_influxdb
+stop_db:
+	helm uninstall --ignore-not-found clickhouse-operator -n analytic
+	helm uninstall --ignore-not-found my-zookeeper -n analytic
+	helm uninstall --ignore-not-found my-clickhouse -n analytic
+	kubectl delete --ignore-not-found pvc data-my-zookeeper-0 -n analytic
+	kubectl delete --ignore-not-found pvc my-clickhouse-data-chi-my-clickhouse-my-clickhouse-0-0-0 -n analytic
 
-stop: stop_kafka stop_orderbook stop_traderpool stop_kafkainit stop_flink_on_k8s stop_influxdb
+start: start_kafka start_orderbook start_traderpool start_db
+
+stop: stop_kafka stop_orderbook stop_traderpool stop_kafkainit stop_flink_on_k8s stop_db
 
 dev:
 	uv pip install -r requirements-dev.txt --find-links $$PWD/src/drgn/dist/

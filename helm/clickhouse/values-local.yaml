@@ -1,0 +1,10 @@
+clickhouse:
+  installation:
+    name: "clickhouse-ha"
+    namespace: "clickhouse"
+
+  configuration:
+    zookeeper:
+      nodes:
+        - host: my-zookeeper
+          port: 2181
