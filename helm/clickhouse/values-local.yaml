@@ -1,10 +1,15 @@
 clickhouse:
   installation:
     name: my-clickhouse
-    namespace: analytic
+    namespace: analytics
+
+  defaultUser:
+    allowExternalAccess: true
 
     configuration:
       zookeeper:
         nodes:
           - host: my-zookeeper
             port: 2181
+operator:
+  enabled: false

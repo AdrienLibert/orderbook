@@ -107,8 +107,7 @@ stop_flink_candle_job:
 start_grafana: build_kustomize
 	kustomize build src/grafana-dashboard | kubectl apply -n monitoring -f -
 	helm install kube-prometheus-stack prometheus-community/kube-prometheus-stack -n monitoring -f helm/grafana/values-local.yaml
-	kubectl apply -f k8s/monitoring/ -n monitoring
-	kubectl port-forward svc/kube-prometheus-stack-grafana 3000:80 -n monitoring
+	kubectl apply -f k8s/grafana/ -n monitoring
 
 stop_grafana: build_kustomize
 	kustomize build src/grafana-dashboard | kubectl delete -n monitoring -f -
@@ -117,23 +116,32 @@ stop_grafana: build_kustomize
 	kubectl delete --ignore-not-found svc kafka-exporter -n monitoring
 	kubectl delete --ignore-not-found deployment kafka-exporter -n monitoring
 	kubectl delete --ignore-not-found svc node-exporter -n monitoring
+	kubectl delete --ignore-not-found service grafana-service -n monitoring
 
-start_db:
-	helm install clickhouse-operator clickhouse-operator/altinity-clickhouse-operator -n analytic
-	helm install my-zookeeper bitnami/zookeeper -n analytic
-	helm install my-clickhouse -n analytic -f helm/clickhouse/values-local.yaml altinity-charts/clickhouse
-	kubectl port-forward -n analytic pod/chi-my-clickhouse-my-clickhouse-0-0-0 9000:9000
+build_db:
+	helm install clickhouse-operator clickhouse-operator/altinity-clickhouse-operator --version 0.23.0 -n analytics -f helm/clickhouse-operator/values-local.yaml
+	helm install my-zookeeper bitnami/zookeeper -n analytics
+	helm install my-clickhouse -n analytics -f helm/clickhouse/values-local.yaml altinity-charts/clickhouse
+	kubectl apply -f k8s/clickhouse/clickhouse-service.yaml
+
+start_db_init: build_kustomize
+	kustomize build src/clickhouse_init | kubectl apply -n analytics -f -
+
+start_db_dev:
+	kubectl exec -n analytics -it chi-my-clickhouse-my-clickhouse-0-0-0 -- clickhouse-client
 
 start_db_client:
-	kubectl exec -n clickhouse -it chi-my-clickhouse-my-clickhouse-0-0-0 -- clickhouse-client
+	clickhouse-client --host 127.0.0.1 --port 30900
 
 stop_db:
-	helm uninstall --ignore-not-found clickhouse-operator -n analytic
-	helm uninstall --ignore-not-found my-zookeeper -n analytic
-	helm uninstall --ignore-not-found my-clickhouse -n analytic
-	kubectl delete --ignore-not-found pvc data-my-zookeeper-0 -n analytic
+	helm uninstall --ignore-not-found clickhouse-operator -n analytics
+	helm uninstall --ignore-not-found my-zookeeper -n analytics
+	helm uninstall --ignore-not-found my-clickhouse -n analytics
+	kubectl delete --ignore-not-found pvc data-my-zookeeper-0 -n analytics
+	kubectl delete --ignore-not-found service clickhouse-service -n analytics
+	kubectl delete --ignore-not-found job clickhouse-init-job -n analytics
 
-start: start_kafka start_orderbook start_traderpool start_db
+start: start_kafka start_orderbook start_traderpool build_db
 
 stop: stop_kafka stop_orderbook stop_traderpool stop_kafkainit stop_flink_on_k8s stop_db
 

@@ -81,6 +81,23 @@ We use a custom NodePort svc for external connection. This is using the 9094 and
 ```
 kubectl port-forward -n orderbook svc/bitnami-kafka-controller-0-external 9094:9094
 ```
+### DataBase
+Install clickhouse client to run the database
+```
+cd /tmp
+curl https://clickhouse.com/
+sudo ./clickhouse install
+make start_db_client
+```
+
+### Grafana
+```
+make start_grafana
+```
+Go to : http://localhost:30300
+
+username : admin
+password : admin
 
 ## Dev setup
 
