@@ -81,6 +81,23 @@ We use a custom NodePort svc for external connection. This is using the 9094 and
 ```
 kubectl port-forward -n orderbook svc/bitnami-kafka-controller-0-external 9094:9094
 ```
+### DataBase
+Install clickhouse client to run the database
+```
+cd /tmp
+curl https://clickhouse.com/
+sudo ./clickhouse install
+make start_db_client
+```
+
+### Grafana
+```
+make start_grafana
+```
+Go to : http://localhost:30300
+
+username : admin
+password : admin
 
 ## Dev setup
 
@@ -97,20 +114,4 @@ Install local requirements will need you to build our custom library named "drgn
 pip install uv==0.5.2
 make build_drgn
 uv pip install -r requirements-dev.txt --find-links $PWD/src/drgn/dist/
-```
-
-Install influxdb-client
-```
-sudo apt install influxdb-client=2.7.1
-```
-
-Install influxdb helm chart and start to listen on 8086 port
-```
-make build_influxdb
-make start_influxdb
-```
-
-Connect to influxdb-client when the pod running
-```
-influx -username admin -password admin
 ```

@@ -1,0 +1,24 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: clickhouse-init-job
+  namespace: analytics
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: clickhouse-init
+          image: clickhouse/clickhouse-client:21.3.20.1
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-c"]
+          args:
+            - clickhouse-client --host clickhouse-service --port 9000 --multiquery < /scripts/init.sql
+          volumeMounts:
+            - name: init-sql
+              mountPath: /scripts
+      volumes:
+        - name: init-sql
+          configMap:
+            name: init-sql-script

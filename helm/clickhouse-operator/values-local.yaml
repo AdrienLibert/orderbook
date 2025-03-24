@@ -1,0 +1,8 @@
+image:
+  repository: docker.io/altinity/clickhouse-operator
+  tag: 0.23.0
+
+metrics:
+  image:
+    repository: docker.io/altinity/metrics-exporter
+    tag: 0.23.0
