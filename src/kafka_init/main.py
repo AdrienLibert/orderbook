@@ -96,12 +96,13 @@ class KafkaTopicSynchronizer:
             replication_factor=1,
             config={},
         )  # add potential other configs here
-        self.admin_client.create_topics(
+        res = self.admin_client.create_topics(
             new_topics=[new_topic],
             operation_timeout=self.__timeout,
             request_timeout=self.__timeout,
         )
-        print(f"topic '{topic}' created succesfully")
+        for tp, futures in res.items():
+            print(f"topic '{tp}' created succesfully: {futures.result()}")
 
     def update_topic(self, topic: str, config: TopicConfig):
         raise NotImplementedError()
@@ -193,3 +194,6 @@ def main(script: str = "init_topics"):
             time.sleep(sleep)
             sleep *= 1.5  # exp backoff
             retries -= 1
+
+if __name__ == "__main__":
+    main()

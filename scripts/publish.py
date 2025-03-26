@@ -39,6 +39,7 @@ def produce_trade(producer: Producer):
     trade_id = str(uuid.uuid4())
     qty = random.randint(10, 50)
     price = random.uniform(40.0, 45.0)
+    now = int(datetime.now(timezone.utc).timestamp() * 1000)
     trade_left = {
         "trade_id": trade_id,
         "order_id": str(uuid.uuid4()),
@@ -46,6 +47,7 @@ def produce_trade(producer: Producer):
         "price": price,
         "action": "BUY",
         "status": "PARTIAL",
+        "timestamp": now,
     }
     trade_right = {
         "trade_id": trade_id,
@@ -54,6 +56,7 @@ def produce_trade(producer: Producer):
         "price": price,
         "action": "SELL",
         "status": "PARTIAL",
+        "timestamp": now,
     }
     producer.produce(
         "trades.topic", bytes(json.dumps(trade_left), "utf-8"), on_delivery=delivery

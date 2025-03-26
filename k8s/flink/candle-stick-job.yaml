@@ -3,6 +3,7 @@ apiVersion: flink.apache.org/v1beta1
 kind: FlinkDeployment
 metadata:
   name: candle-stick-job
+  namespace: analytics
 spec:
   image: local/flink-jobs:latest
   imagePullPolicy: IfNotPresent

@@ -9,38 +9,64 @@ import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsIni
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
+
+import org.apache.flink.table.api.*;
+import org.apache.flink.table.api.Expressions.*;
+import org.apache.flink.types.Row;
+
+import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.lit;
+
 import java.time.Duration;
+import java.time.LocalTime;
 
 public class CandleStickJob {
+
     public static void main(String[] args) throws Exception {
-        // Set up the execution environment
-        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-        KafkaSource<Trade> kafkaSource = KafkaSource.<Trade>builder()
-            .setBootstrapServers("bitnami-kafka.orderbook:9092")
-            .setTopics("trades.topic")
-            .setGroupId("trade-consumer-flink-group")
-            .setStartingOffsets(OffsetsInitializer.earliest())
-            .setValueOnlyDeserializer(new TradeDeserializationSchema())
+        final EnvironmentSettings settings = EnvironmentSettings
+            .newInstance()
+            .inStreamingMode()
             .build();
+        
+        final TableEnvironment tableEnv = TableEnvironment.create(settings);
 
-        DataStream<Trade> stream = env.fromSource(kafkaSource, WatermarkStrategy.noWatermarks(), "Trades Topic Source");
+        tableEnv.executeSql(
+            "CREATE TABLE Trades ("+
+            "    trade_id STRING,"+
+            "    order_id STRING,"+
+            "    quantity INT,"+
+            "    price FLOAT,"+
+            "    action STRING,"+
+            "    status STRING,"+
+            "    `timestamp` BIGINT,"+
+            "    event_time AS TO_TIMESTAMP(FROM_UNIXTIME(`timestamp`)),"+
+            "    WATERMARK FOR event_time AS event_time - INTERVAL '6' SECOND"+
+            ") WITH ("+
+            "    'connector' = 'kafka',"+
+            "    'topic' = 'trades.topic',"+
+            "    'properties.bootstrap.servers' = 'bitnami-kafka.orderbook:9092',"+
+            "    'properties.group.id' = 'candle-stick-job',"+
+            "    'scan.startup.mode' = 'earliest-offset',"+
+            "    'format' = 'json'"+
+            ");"
+        );
 
-        // Perform aggregation in a 5-second tumbling window
-        stream
-            .keyBy(Trade::getTrade_id)
-            .window(TumblingProcessingTimeWindows.of(Duration.ofSeconds(5)))
-            .reduce((trade1, trade2) -> {
-                // TODO: make it a real agregation, this is for kafka testing purposos
-                Trade aggregatedTrade = new Trade();
-                aggregatedTrade.setAction("AGGREGATED");
-                aggregatedTrade.setQuantity(trade1.getQuantity() + trade2.getQuantity());
-                aggregatedTrade.setPrice((trade1.getPrice() + trade2.getPrice()) / 2); // Average price
-                return aggregatedTrade;
-            });
+        Table trades = tableEnv.from("Trades");
 
-        // Execute the Flink job
-        stream.print();
-        env.execute("Trade Aggregation Job");
+        Table tickDataTable = trades
+            .window(Tumble.over(lit(5).seconds()).on($("event_time")).as("w"))
+            .groupBy($("w"))
+            .select(
+                $("w").start().as("windowStart"),
+                $("w").end().as("windowEnd"),
+                $("price").firstValue().as("open"),
+                $("price").max().as("high"),
+                $("price").min().as("low"),
+                $("price").lastValue().as("close"),
+                $("quantity").sum().as("volume")
+            );
+
+        TableResult result = tickDataTable.execute();
+        result.print();
     }
 }
