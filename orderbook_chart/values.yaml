@@ -1,0 +1,36 @@
+namespace: orderbook
+replicaCount: 1
+
+kafkaInit:
+  image:
+    repository: local/kafka-init
+    tag: latest
+  midPrice: "50.0"
+  spread: "1.0"
+  quantity: "100"
+
+traderpool:
+  image:
+    repository: local/traderpool
+    tag: latest
+  numTraders: "60"
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "100m"
+      memory: "128Mi"
+
+orderbook:
+  image:
+    repository: local/orderbook
+    tag: latest
+  numTraders: "60"
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "100m"
+      memory: "128Mi"

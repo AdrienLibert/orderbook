@@ -3,27 +3,27 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   labels:
-    app: kafka-init
-  name: kafka-init-orderbook-job
-  namespace: orderbook
+    app: {{ .Release.Name }}-kafka-init-orderbook-job
+  name: {{ .Release.Name }}-kafka-init-orderbook-job
+  namespace: {{ .Values.namespace }}
 spec:
   template:
     metadata:
       labels:
-        app: kafka-init
+        app: {{ .Release.Name }}-kafka-init-orderbook-job
     spec:
       containers:
       - name: kafka-init-orderbook
-        image: local/kafka-init
+        image: {{ .Values.kafkaInit.image.repository }}:{{ .Values.orderbook.image.tag }}
         imagePullPolicy: IfNotPresent
         command: ["python3", "entrypoint.py", "--init-orderbook"]
         env:
         - name: OB__ORDERBOOK__MID_PRICE
-          value: "50.0"
+          value: {{ .Values.kafkaInit.midPrice | quote }}
         - name: OB__ORDERBOOK__SPREAD
-          value: "1.0"
+          value: {{ .Values.kafkaInit.spread | quote }}
         - name: OB__ORDERBOOK__QUANTITY
-          value: "100"
+          value: {{ .Values.kafkaInit.quantity | quote }}
         - name: OB__KAFKA__BOOTSTRAP_SERVERS
           value: bitnami-kafka:9092
         - name: OB__KAFKA__SECURITY_PROTOCOL
