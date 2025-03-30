@@ -22,7 +22,7 @@ func getenv(key, fallback string) string {
 }
 
 func main() {
-	fmt.Println("INFO: tarting orderbook")
+	fmt.Println("INFO: starting orderbook")
 	me := NewMatchingEngine(
 		NewKafkaClient(),
 		NewOrderBook(),
