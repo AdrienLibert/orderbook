@@ -1,5 +1,8 @@
 # Build all images
-build: build_drgn build_kafkainit build_orderbook build_traderpool
+
+alias kustomize docker run --rm registry.k8s.io/kustomize/kustomize:v5.6.0
+
+build: build_drgn build_kafkainit build_orderbook build_traderpool build_flink build_kustomize
 
 build_drgn:
 	cd src/drgn && \
@@ -14,23 +17,17 @@ build_orderbook:
 build_traderpool:
 	docker build --no-cache -t local/traderpool -f src/traderpool/Dockerfile src
 
-build_flink_image:
-	docker build -t local/flink -f src/flink/Dockerfile.simple src/flink/
-
-build_flink_job:
+build_flink:
 	docker build -t local/flink-jobs -f src/flink/Dockerfile src/flink/
 
 build_kustomize:
 	docker pull registry.k8s.io/kustomize/kustomize:v5.6.0
-	docker run --rm registry.k8s.io/kustomize/kustomize:v5.6.0
 
 helm:
 	helm repo add bitnami https://charts.bitnami.com/bitnami
 	helm repo add jetstack https://charts.jetstack.io
 	helm repo add flink-operator-repo https://downloads.apache.org/flink/flink-kubernetes-operator-1.10.0/
 	helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-	helm repo add clickhouse-operator https://docs.altinity.com/clickhouse-operator/
-	helm repo add altinity-charts https://altinity.github.io/helm-charts/
 	helm repo update
 
 clear_helm:
@@ -80,28 +77,10 @@ stop_flink_on_k8s:
 	helm uninstall --ignore-not-found flink-kubernetes-operator -n analytics
 	kubectl delete crd flinkclusters.flinkoperator.k8s.io --ignore-not-found
 
-start_flink_example:
-	kubectl apply -f k8s/flink/example-deployment.yaml
-
-stop_flink_example:
-	kubectl delete -f k8s/flink/example-deployment.yaml --ignore-not-found
-
-start_flink_custom_image:
-	kubectl apply -f k8s/flink/example-custom-image.yaml
-
-stop_flink_custom_image:
-	kubectl delete -f k8s/flink/example-custom-image.yaml --ignore-not-found
-
-start_flink_custom_job:
-	kubectl apply -f k8s/flink/example-custom-job.yaml
-
-stop_flink_custom_job:
-	kubectl delete -f k8s/flink/example-custom-job.yaml --ignore-not-found
-
-start_flink_candle_job:
+start_flink:
 	kubectl apply -f k8s/flink/candle-stick-job.yaml
 
-stop_flink_candle_job:
+stop_flink:
 	kubectl delete -f k8s/flink/candle-stick-job.yaml --ignore-not-found
 
 start_grafana: build_kustomize
@@ -118,30 +97,19 @@ stop_grafana: build_kustomize
 	kubectl delete --ignore-not-found svc node-exporter -n monitoring
 	kubectl delete --ignore-not-found service grafana-service -n monitoring
 
-build_db:
-	helm install clickhouse-operator clickhouse-operator/altinity-clickhouse-operator --version 0.23.0 -n analytics -f helm/clickhouse-operator/values-local.yaml
-	helm install my-zookeeper bitnami/zookeeper -n analytics
-	helm install my-clickhouse -n analytics -f helm/clickhouse/values-local.yaml altinity-charts/clickhouse
-	kubectl apply -f k8s/clickhouse/clickhouse-service.yaml
-
-start_db_init: build_kustomize
-	kustomize build src/clickhouse_init | kubectl apply -n analytics -f -
-
-start_db_dev:
-	kubectl exec -n analytics -it chi-my-clickhouse-my-clickhouse-0-0-0 -- clickhouse-client
-
-start_db_client:
-	clickhouse-client --host 127.0.0.1 --port 30900
+start_db: start_infra
+	kubectl create secret generic postgres --from-literal=password=postgres --from-literal=postgres-password=postgres --dry-run -o yaml | kubectl apply -f -
+	helm upgrade --install postgres bitnami/postgresql --version 16.5.6 -n analytics --create-namespace -f helm/postgres/values-local.yaml
 
 stop_db:
-	helm uninstall --ignore-not-found clickhouse-operator -n analytics
-	helm uninstall --ignore-not-found my-zookeeper -n analytics
-	helm uninstall --ignore-not-found my-clickhouse -n analytics
-	kubectl delete --ignore-not-found pvc data-my-zookeeper-0 -n analytics
-	kubectl delete --ignore-not-found service clickhouse-service -n analytics
-	kubectl delete --ignore-not-found job clickhouse-init-job -n analytics
+	helm uninstall --ignore-not-found postgres -n analytics
+	kubectl delete --ignore-not-found pvc data-postgres-postgresql-0 -n analytics
+	kubectl delete --ignore-not-found secret postgres
 
-start: start_kafka start_orderbook start_traderpool build_db
+forward_db:
+	kubectl port-forward svc/postgres-postgresql 5432:5432
+
+start: start_kafka start_orderbook start_traderpool start_db
 
 stop: stop_kafka stop_orderbook stop_traderpool stop_kafkainit stop_flink_on_k8s stop_db
 

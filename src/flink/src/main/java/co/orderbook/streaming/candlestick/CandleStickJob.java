@@ -1,46 +1,76 @@
 package co.orderbook.streaming.candlestick;
 
-import co.orderbook.streaming.models.Trade;
-import co.orderbook.streaming.models.TradeDeserializationSchema;
+import org.apache.flink.table.api.*;
 
-import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.connector.kafka.source.KafkaSource;
-import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
-import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
-import java.time.Duration;
+import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.lit;
 
 public class CandleStickJob {
+
+    public static Table compute_ticks(Table tradesTable) {
+        return tradesTable
+            .where($("action").isEqual("BUY")) // remove duplicates
+            .window(Tumble.over(lit(5).seconds()).on($("event_time")).as("w"))
+            .groupBy($("w"))
+            .select(
+                $("w").start().as("window_start"),
+                $("w").end().as("window_end"),
+                $("price").firstValue().as("open"),
+                $("price").max().as("high"),
+                $("price").min().as("low"),
+                $("price").lastValue().as("close"),
+                $("quantity").sum().as("volume"));
+    }
+
     public static void main(String[] args) throws Exception {
-        // Set up the execution environment
-        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        final EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
+        final TableEnvironment tableEnv = TableEnvironment.create(settings);
+        final TableConfig config = tableEnv.getConfig();
+        config.set("table.exec.source.idle-timeout", "1000 ms");
+        config.set("table.exec.resource.default-parallelism", "1");
+        config.set("table.local-time-zone", "UTC");
 
-        KafkaSource<Trade> kafkaSource = KafkaSource.<Trade>builder()
-            .setBootstrapServers("bitnami-kafka.orderbook:9092")
-            .setTopics("trades.topic")
-            .setGroupId("trade-consumer-flink-group")
-            .setStartingOffsets(OffsetsInitializer.earliest())
-            .setValueOnlyDeserializer(new TradeDeserializationSchema())
-            .build();
+        tableEnv.executeSql(
+            "CREATE TABLE Trades (\n"+
+            "    trade_id STRING,\n"+
+            "    order_id STRING,\n"+
+            "    quantity INT,\n"+
+            "    price FLOAT,\n"+
+            "    action STRING,\n"+
+            "    status STRING,\n"+
+            "    `timestamp` BIGINT,\n"+
+            "    event_time AS TO_TIMESTAMP_LTZ(`timestamp`, 3),\n"+
+            "    WATERMARK FOR event_time AS event_time - INTERVAL '5' SECOND\n"+
+            ") WITH (\n"+
+            "    'connector' = 'kafka',\n"+
+            "    'topic' = 'trades.topic',\n"+
+            "    'properties.bootstrap.servers' = 'bitnami-kafka.orderbook:9092',\n"+
+            "    'properties.group.id' = 'candle-stick-job',\n"+
+            "    'scan.startup.mode' = 'earliest-offset',\n"+
+            "    'format' = 'json'\n"+
+            ");"
+        );
+        
+        tableEnv.executeSql(
+            "CREATE TABLE TickDataSink (\n" +
+            "    `window_start` TIMESTAMP(3),\n" +
+            "    `window_end` TIMESTAMP(3),\n" +
+            "    `open` FLOAT,\n" +
+            "    `high` FLOAT,\n" +
+            "    `low` FLOAT,\n" +
+            "    `close` FLOAT,\n" +
+            "    `volume` FLOAT\n" +
+            ") WITH (\n" +
+            "    'connector'    = 'jdbc',\n" +
+            "    'url'          = 'jdbc:postgresql://postgres-postgresql:5432/analytics',\n" +
+            "    'table-name'   = 'tick_data',\n" +
+            "    'driver'       = 'org.postgresql.Driver',\n" +
+            "    'username'     = 'postgres',\n" +
+            "    'password'     = 'postgres'\n" +
+            ")"
+        );
 
-        DataStream<Trade> stream = env.fromSource(kafkaSource, WatermarkStrategy.noWatermarks(), "Trades Topic Source");
-
-        // Perform aggregation in a 5-second tumbling window
-        stream
-            .keyBy(Trade::getTrade_id)
-            .window(TumblingProcessingTimeWindows.of(Duration.ofSeconds(5)))
-            .reduce((trade1, trade2) -> {
-                // TODO: make it a real agregation, this is for kafka testing purposos
-                Trade aggregatedTrade = new Trade();
-                aggregatedTrade.setAction("AGGREGATED");
-                aggregatedTrade.setQuantity(trade1.getQuantity() + trade2.getQuantity());
-                aggregatedTrade.setPrice((trade1.getPrice() + trade2.getPrice()) / 2); // Average price
-                return aggregatedTrade;
-            });
-
-        // Execute the Flink job
-        stream.print();
-        env.execute("Trade Aggregation Job");
+        Table tradesTable = tableEnv.from("Trades");
+        compute_ticks(tradesTable).executeInsert("TickDataSink");
     }
 }
