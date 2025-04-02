@@ -16,7 +16,7 @@
             "type": "number"
         },
         "quantity": {
-            "type": "number"
+            "type": "integer"
         },
         "timestamp": {
             "type": "integer"

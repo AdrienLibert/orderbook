@@ -13,7 +13,7 @@
             "type": "string"
         },
         "quantity": {
-            "type": "number"
+            "type": "integer"
         },
         "price": {  
             "type": "number"

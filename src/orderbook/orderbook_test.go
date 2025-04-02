@@ -82,13 +82,13 @@ func TestOrderBookAddOrder(t *testing.T) {
 	price := 10.0
 	buyOrder := Order{
 		OrderID:   "uuid-uuid-uuid-uuid",
-		OrderType: "buy",
+		OrderType: "limit",
 		Price:     price,
 		Quantity:  20.0,
 		Timestamp: now,
 	}
 
-	orderbook.AddOrder(&buyOrder)
+	orderbook.AddOrder(&buyOrder, "BUY")
 	if orderbook.BestBid.Len() != 1 {
 		t.Errorf("got %d, wanted %d", orderbook.BestBid.Len(), 1)
 	}
@@ -111,12 +111,12 @@ func TestOrderBookAddOrder(t *testing.T) {
 
 	sellOrder := Order{
 		OrderID:   "uuid-uuid-uuid-uuid",
-		OrderType: "sell",
+		OrderType: "limit",
 		Price:     price,
-		Quantity:  20.0,
+		Quantity:  -20.0,
 		Timestamp: now,
 	}
-	orderbook.AddOrder(&sellOrder)
+	orderbook.AddOrder(&sellOrder, "SELL")
 	if orderbook.BestAsk.Len() != 1 {
 		t.Errorf("got %d, wanted %d", orderbook.BestAsk.Len(), 1)
 	}
