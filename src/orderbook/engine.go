@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"math"
 	"os"
 	"os/signal"
 	"time"
@@ -110,6 +109,13 @@ func (me *MatchingEngine) Start() {
 	fmt.Println("INFO: closing... processed", consumedCount, "messages and produced", producedCount, "messages")
 }
 
+func Min(a, b int64) int64 {
+	if a < b {
+		return a
+	}
+	return b
+}
+
 func (me *MatchingEngine) Process(inOrder *Order, producerChannel chan<- Trade, pricePointChannel chan<- PricePoint) {
 	// var currentBook *map[float64][]*Order
 	var oppositeBook *map[float64][]*Order
@@ -144,11 +150,11 @@ func (me *MatchingEngine) Process(inOrder *Order, producerChannel chan<- Trade, 
 		// loop on nest price queue
 		for inOrder.Quantity > 0 && len(oppositeBestPriceQueue) > 0 {
 			outOrder := cut(0, &oppositeBestPriceQueue)
-			tradeQuantity := math.Min(inOrder.Quantity, outOrder.Quantity)
+			tradeQuantity := Min(inOrder.Quantity, outOrder.Quantity)
 			price := outOrder.Price
 			fmt.Printf(
-				"INFO: Executed trade: %s %f @ %f | Left Order ID: %s, Right Order ID: %s | "+
-					"Left Order Quantity: %f, Right Order Quantity: %f\n",
+				"INFO: Executed trade: %s %d @ %f | Left Order ID: %s, Right Order ID: %s | "+
+					"Left Order Quantity: %d, Right Order Quantity: %d\n",
 				inAction, tradeQuantity, price, inOrder.OrderID, outOrder.OrderID,
 				inOrder.Quantity, outOrder.Quantity,
 			)
@@ -167,7 +173,7 @@ func (me *MatchingEngine) Process(inOrder *Order, producerChannel chan<- Trade, 
 			}
 
 			if outOrder.Quantity > 0 {
-				me.orderBook.AddOrder(outOrder)
+				me.orderBook.AddOrder(outOrder, outAction)
 			}
 		}
 		if len(oppositeBestPriceQueue) == 0 {
@@ -176,6 +182,6 @@ func (me *MatchingEngine) Process(inOrder *Order, producerChannel chan<- Trade, 
 		}
 	}
 	if inOrder.Quantity > 0 {
-		me.orderBook.AddOrder(inOrder)
+		me.orderBook.AddOrder(inOrder, inAction)
 	}
 }

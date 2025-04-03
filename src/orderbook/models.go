@@ -9,14 +9,14 @@ type Order struct {
 	OrderID   string  `json:"order_id"`
 	OrderType string  `json:"order_type"`
 	Price     float64 `json:"price"`
-	Quantity  float64 `json:"quantity"`
+	Quantity  int64   `json:"quantity"`
 	Timestamp int64   `json:"timestamp"`
 }
 
 type Trade struct {
 	TradeId   string  `json:"trade_id"`
 	OrderId   string  `json:"order_id"`
-	Quantity  float64 `json:"quantity"`
+	Quantity  int64   `json:"quantity"`
 	Price     float64 `json:"price"`
 	Action    string  `json:"action"`
 	Status    string  `json:"status"`
@@ -51,7 +51,7 @@ func messageToOrder(messageValue []byte) (Order, error) {
 	return *order, nil
 }
 
-func createTrade(tradeId string, inOrder *Order, tradeQuantity float64, price float64, action string, ts int64) Trade {
+func createTrade(tradeId string, inOrder *Order, tradeQuantity int64, price float64, action string, ts int64) Trade {
 	var status string
 
 	if inOrder.Quantity == 0 {

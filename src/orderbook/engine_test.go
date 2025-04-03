@@ -17,7 +17,7 @@ func TestMachingEngineProcessIterative(t *testing.T) {
 	buyPrice := 10.0
 	buyOrder := Order{
 		OrderID:   "buy-uuid-uuid-uuid",
-		OrderType: "buy",
+		OrderType: "limit",
 		Price:     buyPrice,
 		Quantity:  20.0,
 		Timestamp: now,
@@ -37,9 +37,9 @@ func TestMachingEngineProcessIterative(t *testing.T) {
 	sellPrice := 11.0
 	sellOrder := Order{
 		OrderID:   "sell-uuid-uuid-uuid",
-		OrderType: "sell",
+		OrderType: "limit",
 		Price:     sellPrice,
-		Quantity:  20.0,
+		Quantity:  -20.0,
 		Timestamp: now,
 	}
 	machingEngine.Process(&sellOrder, nil, nil)
@@ -59,7 +59,7 @@ func TestMachingEngineProcessIterative(t *testing.T) {
 	newBuyPrice := 11.0
 	newBuyOrder := Order{
 		OrderID:   "new-buy-uuid-uuid",
-		OrderType: "buy",
+		OrderType: "limit",
 		Price:     newBuyPrice,
 		Quantity:  20.0,
 		Timestamp: now,
