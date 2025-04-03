@@ -41,7 +41,6 @@ start_infra:
 
 start_kafka:
 	helm upgrade --install bitnami bitnami/kafka --version 31.0.0 -n orderbook --create-namespace -f helm/kafka/values-local.yaml
-	kubectl apply -f k8s/kafka_init/
 
 forward_kafka:
 	kubectl port-forward --namespace orderbook svc/bitnami-kafka-controller-0-external 9094:9094
@@ -51,24 +50,11 @@ stop_kafka:
 	kubectl delete --ignore-not-found -f k8s/kafka_init/
 	kubectl delete --ignore-not-found pvc data-bitnami-kafka-controller-0 -n orderbook
 
-start_kafkainit:
-	kubectl apply -f k8s/kafka_init/
-
-stop_kafkainit:
-	kubectl delete -f k8s/kafka_init/ --ignore-not-found
-
 start_orderbook:
-	kubectl apply -f k8s/orderbook/
+	helm install orderbook ./orderbook_chart
 
 stop_orderbook:
-	kubectl delete -f k8s/orderbook/ --ignore-not-found
-
-start_traderpool:
-	kubectl apply -f k8s/namespaces.yaml
-	kubectl apply -f k8s/traderpool/
-
-stop_traderpool:
-	kubectl delete -f k8s/traderpool/ --ignore-not-found
+	helm uninstall orderbook
 
 start_flink_on_k8s: start_infra
 	helm install flink-kubernetes-operator flink-operator-repo/flink-kubernetes-operator --namespace analytics --version 1.10.0 -f helm/flink-k8s-operator/values-local.yaml
@@ -109,9 +95,9 @@ stop_db:
 forward_db:
 	kubectl port-forward svc/postgres-postgresql 5432:5432
 
-start: start_kafka start_orderbook start_traderpool start_db
+start: start_kafka start_orderbook
 
-stop: stop_kafka stop_orderbook stop_traderpool stop_kafkainit stop_flink_on_k8s stop_db
+stop: stop_kafka stop_orderbook
 
 dev:
 	uv pip install -r requirements-dev.txt --find-links $$PWD/src/drgn/dist/
