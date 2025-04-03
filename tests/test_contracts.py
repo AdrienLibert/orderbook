@@ -24,6 +24,7 @@ valid_payload = {
         "price": 10.0,
         "action": "buy",
         "status": "closed",
+        "timestamp": ts,
     },
 }
 

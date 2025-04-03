@@ -77,15 +77,14 @@ func NewOrderBook() *Orderbook {
 	return o
 }
 
-func (o *Orderbook) AddOrder(order *Order) {
+func (o *Orderbook) AddOrder(order *Order, orderType string) {
 	// Add order in orderbook
 	// Rules:
 	// - Hashmap of orders are indexes used to assess price in heaps exist
 	// - Orders are added at the end of the list of orders
 	price := order.Price
-	orderType := order.OrderType
 
-	if orderType == "buy" {
+	if orderType == "BUY" {
 		val, ok := o.PriceToBuyOrders[price]
 		if ok {
 			o.PriceToBuyOrders[price] = append(val, order)
@@ -93,7 +92,8 @@ func (o *Orderbook) AddOrder(order *Order) {
 			o.BestBid.Push(price)
 			o.PriceToBuyOrders[price] = []*Order{order}
 		}
-	} else {
+	}
+	if orderType == "SELL" {
 		val, ok := o.PriceToSellOrders[price]
 		if ok {
 			o.PriceToSellOrders[price] = append(val, order)

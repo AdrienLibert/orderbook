@@ -13,7 +13,7 @@
             "type": "string"
         },
         "quantity": {
-            "type": "number"
+            "type": "integer"
         },
         "price": {  
             "type": "number"
@@ -23,7 +23,10 @@
         },
         "status": {
             "type": "string"
+        },
+        "timestamp": {
+            "type": "integer"
         }
     },
-    "required": ["trade_id", "order_id", "quantity", "price", "action", "status"]
+    "required": ["trade_id", "order_id", "quantity", "price", "action", "status", "timestamp"]
   }
