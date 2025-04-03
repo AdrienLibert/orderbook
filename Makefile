@@ -141,7 +141,7 @@ stop_db:
 	kubectl delete --ignore-not-found service clickhouse-service -n analytics
 	kubectl delete --ignore-not-found job clickhouse-init-job -n analytics
 
-start: start_kafka start_orderbook start_traderpool build_db
+start: start_kafka start_orderbook start_traderpool
 
 stop: stop_kafka stop_orderbook stop_traderpool stop_kafkainit stop_flink_on_k8s stop_db
 

@@ -103,7 +103,7 @@ func (kc *KafkaClient) Assign(master sarama.Consumer, topic string) (chan *saram
 	return consumers, errors
 }
 
-func publishOrder(traderId string, quantity float64, target float64, orderType string) Order {
+func publishOrder(quantity int64, target float64, orderType string) Order {
 
 	newUUID := uuid.New()
 	order := Order{

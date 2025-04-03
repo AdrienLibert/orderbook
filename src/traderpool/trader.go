@@ -2,47 +2,54 @@ package main
 
 import (
 	"fmt"
+	"github.com/IBM/sarama"
+	"math/rand"
 	"os"
 	"os/signal"
-	"time"
-
-	"github.com/IBM/sarama"
 )
 
 func (t *Trader) TargetPrices() {
-	bid := t.midPrice.Value - (t.midPrice.Spread / 2)
-	ask := t.midPrice.Value + (t.midPrice.Spread / 2)
-	t.targetBuy = t.midPrice.Value + (t.aggressivenessBuy * (ask - t.midPrice.Value))
-	t.targetSell = t.midPrice.Value - (t.aggressivenessSell * (t.midPrice.Value - bid))
+	bid := t.MidPrice.Value - (t.MidPrice.Spread / 2)
+	ask := t.MidPrice.Value + (t.MidPrice.Spread / 2)
+	t.TargetBuy = t.MidPrice.Value + (t.AggressivenessBuy * (ask - t.MidPrice.Value))
+	t.TargetSell = t.MidPrice.Value - (t.AggressivenessSell * (t.MidPrice.Value - bid))
 }
 
 func (t *Trader) Trade(orderListChannel chan<- Order) Order {
 	t.TargetPrices()
+
+	baseQuantity := int64(rand.Intn(50) + 1)
+	sign := int64(1)
+	if rand.Float64() < 0.5 {
+		sign = -1.0
+	}
+	t.Quantity = baseQuantity * sign
+
 	var orderType string
 	var target float64
 
-	if t.quantity > 0 {
+	if t.Quantity > 0 {
 		orderType = "buy"
-		target = t.targetBuy
+		target = t.TargetBuy
 	} else {
 		orderType = "sell"
-		target = t.targetSell
+		target = t.TargetSell
 	}
 
-	order := publishOrder(t.traderId, t.quantity, target, orderType)
+	order := publishOrder(t.Quantity, target, orderType)
 	orderListChannel <- order
 	return order
 }
 
 func (t *Trader) Start() {
-	orderProducer := t.kafkaClient.GetProducer()
+	orderProducer := t.KafkaClient.GetProducer()
 	if orderProducer == nil {
 		fmt.Println("ERROR: Kafka producer is nil! Exiting.")
 		return
 	}
 
-	master := t.kafkaClient.GetConsumer()
-	consumer, errors := t.kafkaClient.Assign(*master, t._tradeTopic)
+	master := t.KafkaClient.GetConsumer()
+	consumer, errors := t.KafkaClient.Assign(*master, t.TradeTopic)
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt)
 
@@ -54,7 +61,7 @@ func (t *Trader) Start() {
 	go func(orderMessage <-chan Order) {
 		for msg := range orderMessage {
 			producerMessage := sarama.ProducerMessage{
-				Topic: t._quoteTopic,
+				Topic: t.QuoteTopic,
 				Value: sarama.StringEncoder(convertOrderToMessage(msg)),
 			}
 			par, off, err := (*orderProducer).SendMessage(&producerMessage)
@@ -76,13 +83,12 @@ func (t *Trader) Start() {
 				return
 			default:
 				t.Trade(orderListChannel)
-				time.Sleep(time.Second * 2)
 			}
 		}
 	}()
 
 	consumeChannel := make(chan struct{})
-	priceConsumer, priceErrors := t.kafkaClient.Assign(*master, t._pricePointTopic)
+	priceConsumer, priceErrors := t.KafkaClient.Assign(*master, t.PricePointTopic)
 	go func() {
 		for {
 			select {
@@ -91,18 +97,35 @@ func (t *Trader) Start() {
 				if err != nil {
 					handleError(err)
 				} else {
-					if (trade.OrderId == t.traderId) && (trade.Status != "closed") {
+					if trade.OrderId == t.TraderId {
 						consumedCount++
+						switch trade.Status {
+						case "closed":
+							if rand.Float64() < 0.75 {
+								t.Quantity = -t.Quantity
+							}
+						case "partial":
+							if rand.Float64() < 0.5 {
+								t.Quantity = -t.Quantity
+							}
+							if rand.Float64() < 0.5 {
+								t.AggressivenessSell = t.AggressivenessSell * 1.2
+								t.AggressivenessBuy = t.AggressivenessBuy * 1.2
+							} else {
+								t.AggressivenessSell = t.AggressivenessSell * 0.8
+								t.AggressivenessBuy = t.AggressivenessBuy * 0.8
+							}
+						}
 					}
 				}
 			case priceMsg := <-priceConsumer:
 				pricePoint, err := messageToPricePoint(priceMsg.Value)
 				if err != nil {
-					fmt.Printf("ERROR: Failed to parse PricePoint for Trader %s: %s\n", t.traderId, err)
+					fmt.Printf("ERROR: Failed to parse PricePoint for Trader %s: %s\n", t.TraderId, err)
 				} else {
-					t.midPrice.Value = pricePoint.Price
+					t.MidPrice.Value = pricePoint.Price
 					consumedCount++
-					fmt.Printf("INFO: Trader %s updated midprice to last price: %.2f\n", t.traderId, t.midPrice.Value)
+					fmt.Printf("INFO: Update midprice to last price: %.2f\n", t.MidPrice.Value)
 				}
 			case consumerError := <-errors:
 				consumedCount++
