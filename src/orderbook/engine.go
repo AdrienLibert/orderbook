@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"os/signal"
+	"sync"
 	"time"
 
 	"github.com/IBM/sarama"
@@ -16,6 +18,8 @@ type MatchingEngine struct {
 	quoteTopic      string
 	tradeTopic      string
 	pricePointTopic string
+	lastPriceTime   time.Time
+	mu              sync.Mutex
 }
 
 func NewMatchingEngine(kafkaClient *KafkaClient, orderBook *Orderbook) *MatchingEngine {
@@ -25,6 +29,8 @@ func NewMatchingEngine(kafkaClient *KafkaClient, orderBook *Orderbook) *Matching
 	me.quoteTopic = "orders.topic"
 	me.tradeTopic = "trades.topic"
 	me.pricePointTopic = "order.last_price.topic"
+	me.lastPriceTime = time.Time{}
+	me.mu = sync.Mutex{}
 	return me
 }
 
@@ -81,6 +87,33 @@ func (me *MatchingEngine) Start() {
 			}
 		}
 	}(pricePointChannel)
+	go func() {
+		ticker := time.NewTicker(1 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				me.mu.Lock()
+				bestBid := 0.0
+				if me.orderBook.BestBid.Len() > 0 {
+					bestBid = me.orderBook.BestBid.Peak().(float64)
+				}
+				bestAsk := math.MaxFloat64
+				if me.orderBook.BestAsk.Len() > 0 {
+					bestAsk = me.orderBook.BestAsk.Peak().(float64)
+				}
+				if bestBid > 0 && bestAsk < math.MaxFloat64 {
+					midPrice := (bestBid + bestAsk) / 2
+					fmt.Printf("INFO: Publishing midprice every 1s: %.2f\n", midPrice)
+					pricePointChannel <- createPricePoint(midPrice)
+				}
+				me.mu.Unlock()
+			case <-signals:
+				fmt.Println("INFO: Stopping midprice publisher")
+				return
+			}
+		}
+	}()
 
 	orderChannel := make(chan []byte)
 	go func() {
