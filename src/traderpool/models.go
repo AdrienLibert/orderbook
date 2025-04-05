@@ -34,6 +34,7 @@ type Trader struct {
 	AggressivenessSell float64
 	TargetBuy          float64
 	TargetSell         float64
+	Sign               int64
 
 	MidPrice *MidPrice
 
@@ -45,8 +46,7 @@ type Trader struct {
 }
 
 type MidPrice struct {
-	Value  float64 `json:"value"`
-	Spread float64 `json:"spread"`
+	Value float64 `json:"value"`
 	sync.Mutex
 }
 
@@ -67,14 +67,16 @@ func NewTrader(traderId int, midPrice *MidPrice, kafkaClient *KafkaClient) *Trad
 
 	randomQuantity := rand.Int63n(50) + 1
 	if traderId%2 == 0 {
+		t.Sign = 1
 		t.Quantity = randomQuantity
 	} else {
+		t.Sign = -1
 		t.Quantity = -randomQuantity
 	}
 
 	t.MidPrice = midPrice
 
-	fmt.Printf("Trader %s -> Limit Price: %.2f, Agg Buy: %.3f, Agg Sell: %.3f\n",
+	fmt.Printf("Trader %s, Agg Buy: %.3f, Agg Sell: %.3f\n",
 		t.TraderId, t.AggressivenessBuy, t.AggressivenessSell)
 
 	t.QuoteTopic = "orders.topic"

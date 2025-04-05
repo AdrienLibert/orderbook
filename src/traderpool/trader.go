@@ -9,35 +9,33 @@ import (
 )
 
 func (t *Trader) TargetPrices() {
-	bid := t.MidPrice.Value - (t.MidPrice.Spread / 2)
-	ask := t.MidPrice.Value + (t.MidPrice.Spread / 2)
-	t.TargetBuy = t.MidPrice.Value + (t.AggressivenessBuy * (ask - t.MidPrice.Value))
-	t.TargetSell = t.MidPrice.Value - (t.AggressivenessSell * (t.MidPrice.Value - bid))
+	t.TargetBuy = t.MidPrice.Value + (t.AggressivenessBuy * 0.5)
+	t.TargetSell = t.MidPrice.Value - (t.AggressivenessSell * 0.5)
 }
 
 func (t *Trader) Trade(orderListChannel chan<- Order) Order {
 	t.TargetPrices()
 
-	baseQuantity := int64(rand.Intn(50) + 1)
-	sign := int64(1)
-	if rand.Float64() < 0.5 {
-		sign = -1.0
-	}
-	t.Quantity = baseQuantity * sign
+	orderQuantity := int64(rand.Intn(50) + 1)
+	orderQuantity *= t.Sign
 
-	var orderType string
 	var target float64
-
-	if t.Quantity > 0 {
-		orderType = "buy"
+	if orderQuantity > 0 {
 		target = t.TargetBuy
 	} else {
-		orderType = "sell"
 		target = t.TargetSell
 	}
 
-	order := publishOrder(t.Quantity, target, orderType)
-	orderListChannel <- order
+	order := publishOrder(orderQuantity, target)
+	if order.Quantity != 0 {
+		select {
+		case orderListChannel <- order:
+		default:
+			fmt.Println("INFO: Order channel full, skipping order:", order)
+		}
+	} else {
+		fmt.Println("INFO: Skipping empty order")
+	}
 	return order
 }
 
@@ -60,6 +58,10 @@ func (t *Trader) Start() {
 
 	go func(orderMessage <-chan Order) {
 		for msg := range orderMessage {
+			if msg.Quantity == 0 {
+				fmt.Println("INFO: Skipping empty order in producer")
+				continue
+			}
 			producerMessage := sarama.ProducerMessage{
 				Topic: t.QuoteTopic,
 				Value: sarama.StringEncoder(convertOrderToMessage(msg)),
@@ -102,30 +104,23 @@ func (t *Trader) Start() {
 						switch trade.Status {
 						case "closed":
 							if rand.Float64() < 0.75 {
-								t.Quantity = -t.Quantity
+								t.Sign = -1 * t.Sign
 							}
-						case "partial":
-							if rand.Float64() < 0.5 {
-								t.Quantity = -t.Quantity
-							}
-							if rand.Float64() < 0.5 {
-								t.AggressivenessSell = t.AggressivenessSell * 1.2
-								t.AggressivenessBuy = t.AggressivenessBuy * 1.2
-							} else {
-								t.AggressivenessSell = t.AggressivenessSell * 0.8
-								t.AggressivenessBuy = t.AggressivenessBuy * 0.8
-							}
+						default:
+							t.AggressivenessSell *= 1.4
+							t.AggressivenessBuy *= 1.4
+							t.Sign = -1 * t.Sign
 						}
 					}
 				}
 			case priceMsg := <-priceConsumer:
-				pricePoint, err := messageToPricePoint(priceMsg.Value)
+				pricePoint, err := convertMessageToPrice(priceMsg.Value)
 				if err != nil {
 					fmt.Printf("ERROR: Failed to parse PricePoint for Trader %s: %s\n", t.TraderId, err)
 				} else {
 					t.MidPrice.Value = pricePoint.Price
 					consumedCount++
-					fmt.Printf("INFO: Update midprice to last price: %.2f\n", t.MidPrice.Value)
+					fmt.Printf("INFO: Updated midprice to last price: %.2f\n", t.MidPrice.Value)
 				}
 			case consumerError := <-errors:
 				consumedCount++

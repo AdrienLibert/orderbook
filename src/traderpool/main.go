@@ -24,22 +24,22 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 
 	numTradersStr := getenv("NUM_TRADERS", "10")
-	fmt.Print("NUM_TRADERS: " + numTradersStr)
 	numTraders, err := strconv.Atoi(numTradersStr)
 	if err != nil {
 		fmt.Printf("ERROR: NUM_TRADERS invalid (%s)\n", numTradersStr)
 		os.Exit(1)
 	}
+	fmt.Printf("NUM_TRADERS %d\n", numTraders)
 
 	kc := NewKafkaClient()
 	master := kc.GetConsumer()
 	priceConsumer, _ := kc.Assign(*master, "order.last_price.topic")
 	var initialMidPrice float64
 	priceMsg := <-priceConsumer
-	pricePoint, err := messageToPricePoint(priceMsg.Value)
+	pricePoint, err := convertMessageToPrice(priceMsg.Value)
 	if err != nil {
 		fmt.Printf("ERROR: Failed to parse initial PricePoint: %v\n", err)
-		initialMidPrice = 47.0
+		initialMidPrice = 100.0
 	} else {
 		initialMidPrice = pricePoint.Price
 		fmt.Printf("INFO: Initial MidPrice set to: %.2f\n", initialMidPrice)
@@ -47,7 +47,6 @@ func main() {
 	sharedMidPrice := createMidPrice(initialMidPrice)
 
 	var wg sync.WaitGroup
-
 	for i := 0; i < numTraders; i++ {
 		wg.Add(1)
 		go func(i int) {

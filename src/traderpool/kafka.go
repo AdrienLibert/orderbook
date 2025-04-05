@@ -66,7 +66,6 @@ func (kc *KafkaClient) GetProducer() *sarama.SyncProducer {
 }
 
 func (kc *KafkaClient) Assign(master sarama.Consumer, topic string) (chan *sarama.ConsumerMessage, chan *sarama.ConsumerError) {
-
 	consumers := make(chan *sarama.ConsumerMessage)
 	errors := make(chan *sarama.ConsumerError)
 
@@ -86,7 +85,6 @@ func (kc *KafkaClient) Assign(master sarama.Consumer, topic string) (chan *saram
 		fmt.Printf("ERROR: topic %v partitions %v", topic, partitions)
 		panic(err)
 	}
-	fmt.Println("INFO: start consuming topic: ", topic)
 
 	go func(topic string, consumer sarama.PartitionConsumer) {
 		for {
@@ -103,12 +101,11 @@ func (kc *KafkaClient) Assign(master sarama.Consumer, topic string) (chan *saram
 	return consumers, errors
 }
 
-func publishOrder(quantity int64, target float64, orderType string) Order {
-
+func publishOrder(quantity int64, target float64) Order {
 	newUUID := uuid.New()
 	order := Order{
 		OrderID:   newUUID.String(),
-		OrderType: orderType,
+		OrderType: "limit",
 		Price:     target,
 		Quantity:  quantity,
 		Timestamp: float64(time.Now().Unix()),
@@ -137,8 +134,7 @@ func convertMessageToTrade(messageValue []byte) (Trade, error) {
 	return *trade, nil
 }
 
-// Fonction utilitaire pour convertir un message en PricePoint (à ajouter si pas déjà défini)
-func messageToPricePoint(value []byte) (PricePoint, error) {
+func convertMessageToPrice(value []byte) (PricePoint, error) {
 	var pp PricePoint
 	err := json.Unmarshal(value, &pp)
 	return pp, err
