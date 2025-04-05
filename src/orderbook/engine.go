@@ -104,12 +104,12 @@ func (me *MatchingEngine) Start() {
 				}
 				if bestBid > 0 && bestAsk < math.MaxFloat64 {
 					midPrice := (bestBid + bestAsk) / 2
-					fmt.Printf("INFO: Publishing midprice every 1s: %.2f\n", midPrice)
+					fmt.Printf("INFO: produced midprice every 1s: %.2f\n", midPrice)
 					pricePointChannel <- createPricePoint(midPrice)
 				}
 				me.mu.Unlock()
 			case <-signals:
-				fmt.Println("INFO: Stopping midprice publisher")
+				fmt.Println("INFO: interrupt is detected... Closing quote midprice...")
 				return
 			}
 		}
