@@ -5,7 +5,6 @@ import (
 	"math"
 	"os"
 	"os/signal"
-	"sync"
 	"time"
 
 	"github.com/IBM/sarama"
@@ -18,8 +17,6 @@ type MatchingEngine struct {
 	quoteTopic      string
 	tradeTopic      string
 	pricePointTopic string
-	lastPriceTime   time.Time
-	mu              sync.Mutex
 }
 
 func NewMatchingEngine(kafkaClient *KafkaClient, orderBook *Orderbook) *MatchingEngine {
@@ -29,8 +26,6 @@ func NewMatchingEngine(kafkaClient *KafkaClient, orderBook *Orderbook) *Matching
 	me.quoteTopic = "orders.topic"
 	me.tradeTopic = "trades.topic"
 	me.pricePointTopic = "order.last_price.topic"
-	me.lastPriceTime = time.Time{}
-	me.mu = sync.Mutex{}
 	return me
 }
 
@@ -93,7 +88,6 @@ func (me *MatchingEngine) Start() {
 		for {
 			select {
 			case <-ticker.C:
-				me.mu.Lock()
 				bestBid := 0.0
 				if me.orderBook.BestBid.Len() > 0 {
 					bestBid = me.orderBook.BestBid.Peak().(float64)
@@ -107,7 +101,6 @@ func (me *MatchingEngine) Start() {
 					fmt.Printf("INFO: produced midprice every 1s: %.2f\n", midPrice)
 					pricePointChannel <- createPricePoint(midPrice)
 				}
-				me.mu.Unlock()
 			case <-signals:
 				fmt.Println("INFO: interrupt is detected... Closing quote midprice...")
 				return

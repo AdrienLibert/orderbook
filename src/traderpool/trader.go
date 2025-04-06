@@ -114,7 +114,7 @@ func (t *Trader) Start() {
 					}
 				}
 			case priceMsg := <-priceConsumer:
-				pricePoint, err := convertMessageToPrice(priceMsg.Value)
+				pricePoint, err := convertMessageToPricePoint(priceMsg.Value)
 				if err != nil {
 					fmt.Printf("ERROR: Failed to parse PricePoint for Trader %s: %s\n", t.TraderId, err)
 				} else {

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"math/rand"
 	"os"
 	"os/signal"
@@ -10,44 +9,7 @@ import (
 	"time"
 
 	"github.com/IBM/sarama"
-	"github.com/IBM/sarama/mocks"
 )
-
-// MockConsumerChan for testing
-type MockConsumerChan chan *sarama.ConsumerMessage
-
-func (m MockConsumerChan) Send(orderId, status string) {
-	trade := Trade{
-		OrderId:  orderId,
-		Status:   status,
-		Quantity: 0,
-		Price:    0.0,
-		Action:   "",
-	}
-	tradeBytes, _ := json.Marshal(trade)
-	m <- &sarama.ConsumerMessage{
-		Value: tradeBytes,
-	}
-}
-
-// MockKafkaClient for testing
-type MockKafkaClient struct {
-	*KafkaClient
-	MockProducer sarama.SyncProducer
-}
-
-func NewMockKafkaClient(t *testing.T) *MockKafkaClient {
-	kc := NewKafkaClient()
-	mockProducer := mocks.NewSyncProducer(t, kc.producerConfig)
-	return &MockKafkaClient{
-		KafkaClient:  kc,
-		MockProducer: mockProducer,
-	}
-}
-
-func (mkc *MockKafkaClient) GetProducer() *sarama.SyncProducer {
-	return &mkc.MockProducer
-}
 
 func TestTraderPool(t *testing.T) {
 	// Seed random number generator for consistent results
@@ -250,7 +212,7 @@ func TestTraderPool(t *testing.T) {
 		// Test closed trade
 		initialSign := trader.Sign
 		t.Logf("Testing closed trade, initial sign: %d", initialSign)
-		consumer.Send("T1", "closed")
+		consumer.SendOrder("T1", "closed")
 		time.Sleep(50 * time.Millisecond)
 
 		if consumedCount != 1 {
@@ -265,7 +227,7 @@ func TestTraderPool(t *testing.T) {
 		initialSellAgg := trader.AggressivenessSell
 		initialSign = trader.Sign
 		t.Logf("Testing non-closed trade, initial sign: %d", initialSign)
-		consumer.Send("T1", "open")
+		consumer.SendOrder("T1", "open")
 		time.Sleep(50 * time.Millisecond)
 
 		if consumedCount != 2 {
@@ -284,7 +246,7 @@ func TestTraderPool(t *testing.T) {
 		}
 
 		t.Logf("Testing unrelated trade, current sign: %d", trader.Sign)
-		consumer.Send("T2", "closed")
+		consumer.SendOrder("T2", "closed")
 		time.Sleep(50 * time.Millisecond)
 		if consumedCount != 2 {
 			t.Errorf("Expected consumedCount to remain 2, got %d", consumedCount)

@@ -134,7 +134,7 @@ func convertMessageToTrade(messageValue []byte) (Trade, error) {
 	return *trade, nil
 }
 
-func convertMessageToPrice(value []byte) (PricePoint, error) {
+func convertMessageToPricePoint(value []byte) (PricePoint, error) {
 	var pp PricePoint
 	err := json.Unmarshal(value, &pp)
 	return pp, err

@@ -36,7 +36,7 @@ func main() {
 	priceConsumer, _ := kc.Assign(*master, "order.last_price.topic")
 	var initialMidPrice float64
 	priceMsg := <-priceConsumer
-	pricePoint, err := convertMessageToPrice(priceMsg.Value)
+	pricePoint, err := convertMessageToPricePoint(priceMsg.Value)
 	if err != nil {
 		fmt.Printf("ERROR: Failed to parse initial PricePoint: %v\n", err)
 		initialMidPrice = 100.0
