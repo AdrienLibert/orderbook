@@ -1,0 +1,30 @@
+image:
+  repository: my-spark-with-kafka
+  tag: 3.5.1
+  pullPolicy: IfNotPresent
+
+master:
+  replicaCount: 1
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "500m"
+    limits:
+      memory: "1Gi"
+      cpu: "1000m"
+  extraEnvVars:
+    - name: SPARK_MASTER_OPTS
+      value: "--conf spark.master=k8s://https://kubernetes.default.svc --conf spark.kubernetes.namespace=default --conf spark.kubernetes.container.image=my-spark-with-kafka:3.5.1"
+
+worker:
+  replicaCount: 2
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "1000m"
+    limits:
+      memory: "2Gi"
+      cpu: "2000m"
+  extraEnvVars:
+    - name: SPARK_WORKER_OPTS
+      value: ""
