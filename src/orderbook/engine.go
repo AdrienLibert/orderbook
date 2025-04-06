@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"os/signal"
 	"time"
@@ -81,6 +82,31 @@ func (me *MatchingEngine) Start() {
 			}
 		}
 	}(pricePointChannel)
+	go func() {
+		ticker := time.NewTicker(1 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				bestBid := 0.0
+				if me.orderBook.BestBid.Len() > 0 {
+					bestBid = me.orderBook.BestBid.Peak().(float64)
+				}
+				bestAsk := math.MaxFloat64
+				if me.orderBook.BestAsk.Len() > 0 {
+					bestAsk = me.orderBook.BestAsk.Peak().(float64)
+				}
+				if bestBid > 0 && bestAsk < math.MaxFloat64 {
+					midPrice := (bestBid + bestAsk) / 2
+					fmt.Printf("INFO: produced midprice every 1s: %.2f\n", midPrice)
+					pricePointChannel <- createPricePoint(midPrice)
+				}
+			case <-signals:
+				fmt.Println("INFO: interrupt is detected... Closing quote midprice...")
+				return
+			}
+		}
+	}()
 
 	orderChannel := make(chan []byte)
 	go func() {
