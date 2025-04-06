@@ -1,6 +1,10 @@
+global:
+  security:
+    allowInsecureImages: true
+
 image:
-  repository: my-spark-with-kafka
-  tag: 3.5.1
+  repository: local/spark
+  tag: 3.5.5
   pullPolicy: IfNotPresent
 
 master:
@@ -12,9 +16,12 @@ master:
     limits:
       memory: "1Gi"
       cpu: "1000m"
+  containerPorts:
+    http: 8080
+    cluster: 7077
   extraEnvVars:
     - name: SPARK_MASTER_OPTS
-      value: "--conf spark.master=k8s://https://kubernetes.default.svc --conf spark.kubernetes.namespace=default --conf spark.kubernetes.container.image=my-spark-with-kafka:3.5.1"
+      value: "-Dspark.ui.port=8080"
 
 worker:
   replicaCount: 2
@@ -28,3 +35,9 @@ worker:
   extraEnvVars:
     - name: SPARK_WORKER_OPTS
       value: ""
+
+service:
+  type: ClusterIP
+  ports:
+    http: 8080
+    cluster: 7077
