@@ -178,10 +178,12 @@ func (me *MatchingEngine) Process(inOrder *Order, producerChannel chan<- Trade, 
 			outOrder := cut(0, &oppositeBestPriceQueue)
 			tradeQuantity := Min(inOrder.Quantity, outOrder.Quantity)
 			price := outOrder.Price
+			tradeId := uuid.New().String()
+			ts := time.Now().Unix()
 			fmt.Printf(
-				"INFO: Executed trade: %s %d @ %f | Left Order ID: %s, Right Order ID: %s | "+
-					"Left Order Quantity: %d, Right Order Quantity: %d\n",
-				inAction, tradeQuantity, price, inOrder.OrderID, outOrder.OrderID,
+				"INFO: Executed trade %s @ %d: %s %d @ %f | Left Order ID: %s, Right Order ID: %s | "+
+					"Left Quantity: %d, Right Quantity: %d\n",
+				tradeId, ts, inAction, tradeQuantity, price, inOrder.OrderID, outOrder.OrderID,
 				inOrder.Quantity, outOrder.Quantity,
 			)
 
@@ -189,8 +191,6 @@ func (me *MatchingEngine) Process(inOrder *Order, producerChannel chan<- Trade, 
 			outOrder.Quantity -= tradeQuantity
 
 			if producerChannel != nil {
-				tradeId := uuid.New().String()
-				ts := time.Now().Unix()
 				producerChannel <- createTrade(tradeId, inOrder, tradeQuantity, price, inAction, ts)
 				producerChannel <- createTrade(tradeId, outOrder, tradeQuantity, price, outAction, ts)
 			}
