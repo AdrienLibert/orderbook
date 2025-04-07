@@ -26,7 +26,6 @@ orderbook:
   image:
     repository: local/orderbook
     tag: latest
-  numTraders: "60"
   resources:
     requests:
       cpu: "50m"

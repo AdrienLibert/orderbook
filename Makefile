@@ -1,8 +1,7 @@
+target: build
+
 # Build all images
-
 alias kustomize docker run --rm registry.k8s.io/kustomize/kustomize:v5.6.0
-
-build: build_drgn build_kafkainit build_orderbook build_traderpool build_flink build_kustomize
 
 build_drgn:
 	cd src/drgn && \
@@ -49,11 +48,6 @@ stop_kafka:
 	helm uninstall --ignore-not-found bitnami -n orderbook
 	kubectl delete --ignore-not-found pvc data-bitnami-kafka-controller-0 -n orderbook
 
-start_orderbook:
-	helm install orderbook ./orderbook_chart
-
-stop_orderbook:
-	helm uninstall orderbook
 
 start_flink_on_k8s: start_infra
 	helm install flink-kubernetes-operator flink-operator-repo/flink-kubernetes-operator --namespace analytics --version 1.10.0 -f helm/flink-k8s-operator/values-local.yaml
@@ -94,12 +88,16 @@ stop_db:
 forward_db:
 	kubectl port-forward svc/postgres-postgresql 5432:5432
 
-start: start_kafka start_orderbook
-
-stop: stop_kafka stop_orderbook
-
 dev:
 	uv pip install -r requirements-dev.txt --find-links $$PWD/src/drgn/dist/
 
 test:
 	pytest tests/ -vv
+
+build: build_drgn build_kafkainit build_orderbook build_traderpool
+
+start:
+	helm install orderbook ./chart --namespace orderbook
+
+stop:
+	helm uninstall --ignore-not-found orderbook --namespace orderbook
