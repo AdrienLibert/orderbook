@@ -21,7 +21,7 @@ build_flink:
 	docker build -t local/flink-jobs -f src/flink/Dockerfile src/flink/
 
 build_spark:
-	docker build -t local/spark:3.5.1 -f src/spark/Dockerfile src
+	docker build -t local/spark:3.5.5 -f src/spark/Dockerfile src
 
 build_kustomize:
 	docker pull registry.k8s.io/kustomize/kustomize:v5.6.0
@@ -95,10 +95,13 @@ stop_db:
 	kubectl delete --ignore-not-found secret postgres
 
 forward_db:
-	kubectl port-forward svc/postgres-postgresql 5432:5432
+	kubectl port-forward svc/postgres-postgresql 5432:5432 -n analytics
 
 start_spark: start_infra
 	helm install spark bitnami/spark -f helm/spark/values-local.yaml --namespace analytics
+
+stop_spark:
+	helm uninstall --ignore-not-found spark -n analytics
 
 start: start_kafka start_orderbook
 
