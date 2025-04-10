@@ -1,3 +1,0 @@
-watchNamespaces: ["analytics"]
-webhook:
-  create: false
