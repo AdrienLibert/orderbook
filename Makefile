@@ -8,13 +8,13 @@ build_drgn:
 	uv build
 
 build_kafkainit:
-	docker build -t local/kafka-init -f src/kafka_init/Dockerfile src
+	docker build -t local/kafka-init -f src/kafka_init/Dockerfile src/kafka_init/
 
 build_orderbook:
-	docker build -t local/orderbook -f src/orderbook/Dockerfile src
+	docker build -t local/orderbook -f src/orderbook/Dockerfile src/orderbook/
 
 build_traderpool:
-	docker build --no-cache -t local/traderpool -f src/traderpool/Dockerfile src
+	docker build --no-cache -t local/traderpool -f src/traderpool/Dockerfile src/traderpool/
 
 build_flink:
 	docker build -t local/flink-jobs -f src/flink/Dockerfile src/flink/
@@ -47,7 +47,6 @@ forward_kafka:
 stop_kafka:
 	helm uninstall --ignore-not-found bitnami -n orderbook
 	kubectl delete --ignore-not-found pvc data-bitnami-kafka-controller-0 -n orderbook
-
 
 start_flink_on_k8s: start_infra
 	helm install flink-kubernetes-operator flink-operator-repo/flink-kubernetes-operator --namespace analytics --version 1.10.0 -f helm/flink-k8s-operator/values-local.yaml
