@@ -1,12 +1,17 @@
-FROM bitnami/spark:3.5.5-debian-12-r2
+FROM python:3.12.1-bullseye
 
-USER root
-RUN apt-get update && apt-get install -y wget \
-    && rm -rf /var/lib/apt/lists/* \
-    && wget -P /opt/bitnami/spark/jars https://repo1.maven.org/maven2/org/apache/spark/spark-sql-kafka-0-10_2.12/3.5.5/spark-sql-kafka-0-10_2.12-3.5.5.jar \
-    && wget -P /opt/bitnami/spark/jars https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/3.6.0/kafka-clients-3.6.0.jar
+RUN apt-get update && apt-get install -y openjdk-11-jdk
 
-COPY trades_spark.py /app/trades_spark.py
+ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
 
-USER 1001
+RUN pip install --no-cache-dir pyspark==3.5.5
+
+RUN mkdir /app
+RUN wget -P 3.5.5/jars/ https://jdbc.postgresql.org/download/postgresql-42.7.4.jar;
+
+
+COPY ./spark /app/
+
 WORKDIR /app
+
+ENTRYPOINT ["python3", "trades_spark.py"]
