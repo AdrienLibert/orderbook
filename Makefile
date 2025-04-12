@@ -3,10 +3,6 @@ target: build
 # Build all images
 alias kustomize docker run --rm registry.k8s.io/kustomize/kustomize:v5.6.0
 
-build_drgn:
-	cd src/drgn && \
-	uv build
-
 build_kafkainit:
 	docker build -t local/kafka-init -f src/kafka_init/Dockerfile src/kafka_init/
 
@@ -15,9 +11,6 @@ build_orderbook:
 
 build_traderpool:
 	docker build --no-cache -t local/traderpool -f src/traderpool/Dockerfile src/traderpool/
-
-build_flink:
-	docker build -t local/flink-jobs -f src/flink/Dockerfile src/flink/
 
 build_kustomize:
 	docker pull registry.k8s.io/kustomize/kustomize:v5.6.0
@@ -48,19 +41,6 @@ stop_kafka:
 	helm uninstall --ignore-not-found bitnami -n orderbook
 	kubectl delete --ignore-not-found pvc data-bitnami-kafka-controller-0 -n orderbook
 
-start_flink_on_k8s: start_infra
-	helm install flink-kubernetes-operator flink-operator-repo/flink-kubernetes-operator --namespace analytics --version 1.10.0 -f helm/flink-k8s-operator/values-local.yaml
-
-stop_flink_on_k8s:
-	helm uninstall --ignore-not-found flink-kubernetes-operator -n analytics
-	kubectl delete crd flinkclusters.flinkoperator.k8s.io --ignore-not-found
-
-start_flink:
-	kubectl apply -f k8s/flink/candle-stick-job.yaml
-
-stop_flink:
-	kubectl delete -f k8s/flink/candle-stick-job.yaml --ignore-not-found
-
 start_grafana: build_kustomize
 	kustomize build src/grafana-dashboard | kubectl apply -n monitoring -f -
 	helm install kube-prometheus-stack prometheus-community/kube-prometheus-stack -n monitoring -f helm/grafana/values-local.yaml
@@ -75,20 +55,8 @@ stop_grafana: build_kustomize
 	kubectl delete --ignore-not-found svc node-exporter -n monitoring
 	kubectl delete --ignore-not-found service grafana-service -n monitoring
 
-start_db: start_infra
-	kubectl create secret generic postgres --from-literal=password=postgres --from-literal=postgres-password=postgres --dry-run -o yaml | kubectl apply -f -
-	helm upgrade --install postgres bitnami/postgresql --version 16.5.6 -n analytics --create-namespace -f helm/postgres/values-local.yaml
-
-stop_db:
-	helm uninstall --ignore-not-found postgres -n analytics
-	kubectl delete --ignore-not-found pvc data-postgres-postgresql-0 -n analytics
-	kubectl delete --ignore-not-found secret postgres
-
-forward_db:
-	kubectl port-forward svc/postgres-postgresql 5432:5432
-
 dev:
-	uv pip install -r requirements-dev.txt --find-links $$PWD/src/drgn/dist/
+	uv pip install -r requirements-dev.txt
 
 test:
 	pytest tests/ -vv
