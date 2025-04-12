@@ -1,23 +1,32 @@
----
-apiVersion: flink.apache.org/v1beta1
-kind: FlinkDeployment
+apiVersion: v1
+kind: ServiceAccount
 metadata:
-  name: custom-image
-spec:
-  image: local/flink:latest
-  flinkVersion: v1_20
-  flinkConfiguration:
-    taskmanager.numberOfTaskSlots: "2"
-  serviceAccount: flink
-  jobManager:
-    resource:
-      memory: "2048m"
-      cpu: 0.5
-  taskManager:
-    resource:
-      memory: "2048m"
-      cpu: 0.5
-  job:
-    jarURI: local:///opt/flink/examples/streaming/StateMachineExample.jar
-    parallelism: 1
-    upgradeMode: stateless
+  name: spark
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: spark-role
+  namespace: default
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services", "configmaps", "events"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["sparkoperator.k8s.io"]
+    resources: ["sparkapplications"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: spark-role-binding
+  namespace: default
+subjects:
+  - kind: ServiceAccount
+    name: spark
+    namespace: default
+roleRef:
+  kind: Role
+  name: spark-role
+  apiGroup: rbac.authorization.k8s.io

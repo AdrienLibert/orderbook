@@ -31,6 +31,7 @@ helm:
 	helm repo add jetstack https://charts.jetstack.io
 	helm repo add flink-operator-repo https://downloads.apache.org/flink/flink-kubernetes-operator-1.10.0/
 	helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+	helm repo add spark-operator https://kubeflow.github.io/spark-operator
 	helm repo update
 
 clear_helm:
@@ -98,10 +99,11 @@ forward_db:
 	kubectl port-forward svc/postgres-postgresql 5432:5432 -n analytics
 
 start_spark: start_infra
-	helm install spark bitnami/spark -f helm/spark/values-local.yaml --namespace analytics
+	helm install spark-operator spark-operator/spark-operator --namespace spark-operator --create-namespace --wait
+	kubectl apply -f k8s/spark/
 
 stop_spark:
-	helm uninstall --ignore-not-found spark -n analytics
+	helm uninstall --ignore-not-found spark-operator -n spark-operator
 
 start: start_kafka start_orderbook
 
