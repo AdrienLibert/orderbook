@@ -1,9 +1,9 @@
 FROM golang:1.23.4
 
 WORKDIR /app
-COPY ./orderbook/go.mod ./orderbook/go.sum ./
+COPY go.mod go.sum ./
 RUN go mod tidy
-COPY ./orderbook /app
+COPY . /app
 
 RUN go build -o main .
 
