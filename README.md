@@ -56,3 +56,11 @@ This step leverages helm for kafka stack component
 ```
 make helm
 ```
+
+### Start
+
+Star the whole infrastructure and run the services
+```
+make start_deps
+make start
+```

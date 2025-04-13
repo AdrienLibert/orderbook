@@ -1,8 +1,6 @@
-target: build
-
-# Build all images
 alias kustomize docker run --rm registry.k8s.io/kustomize/kustomize:v5.6.0
 
+# Build images for service
 build_kafkainit:
 	docker build -t local/kafka-init -f src/kafka_init/Dockerfile src/kafka_init/
 
@@ -15,29 +13,28 @@ build_traderpool:
 build_kustomize:
 	docker pull registry.k8s.io/kustomize/kustomize:v5.6.0
 
+build: build_kafkainit build_orderbook build_traderpool
+
+# Helm
 helm:
 	helm repo add bitnami https://charts.bitnami.com/bitnami
 	helm repo add jetstack https://charts.jetstack.io
-	helm repo add flink-operator-repo https://downloads.apache.org/flink/flink-kubernetes-operator-1.10.0/
 	helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 	helm repo update
 
 clear_helm:
 	helm repo remove bitnami
 	helm repo remove jetstack
-	helm repo remove flink-operator-repo
 	helm repo remove prometheus-community
 
+# Local infra
 start_infra:
 	kubectl apply -f k8s/namespaces.yaml
 
-start_kafka:
+start_deps:
 	helm upgrade --install bitnami bitnami/kafka --version 31.0.0 -n orderbook --create-namespace -f helm/kafka/values-local.yaml
 
-forward_kafka:
-	kubectl port-forward --namespace orderbook svc/bitnami-kafka-controller-0-external 9094:9094
-
-stop_kafka:
+stop_deps:
 	helm uninstall --ignore-not-found bitnami -n orderbook
 	kubectl delete --ignore-not-found pvc data-bitnami-kafka-controller-0 -n orderbook
 
@@ -55,16 +52,17 @@ stop_grafana: build_kustomize
 	kubectl delete --ignore-not-found svc node-exporter -n monitoring
 	kubectl delete --ignore-not-found service grafana-service -n monitoring
 
-dev:
-	uv pip install -r requirements-dev.txt
-
-test:
-	pytest tests/ -vv
-
-build: build_drgn build_kafkainit build_orderbook build_traderpool
-
-start:
+start: start_infra
 	helm install orderbook ./chart --namespace orderbook
 
 stop:
 	helm uninstall --ignore-not-found orderbook --namespace orderbook
+
+# Need virtual env or python setup with requirements installed
+# 1. test contracts
+# 2. test orderbook
+# 3. test traderbook
+test:
+	pytest tests/ -vv
+	cd src/orderbook/ && go test
+	cd src/traderpool/ && go test
