@@ -201,13 +201,15 @@ func (me *MatchingEngine) Process(inOrder *Order, producerChannel chan<- Trade, 
 			if outOrder.Quantity > 0 {
 				me.orderBook.AddOrder(outOrder, outAction)
 			}
+
+			// TODO: if outOrder.Quantity == 0
 		}
 		if len(oppositeBestPriceQueue) == 0 {
 			bestPrice := oppositeBestPrice.Pop().(float64)
 			delete(*oppositeBook, bestPrice)
 		}
 	}
-	if inOrder.Quantity > 0 {
+	if inOrder.Quantity > 0 { // don't add if empty
 		me.orderBook.AddOrder(inOrder, inAction)
 	}
 }
