@@ -143,26 +143,20 @@ func Min(a, b int64) int64 {
 }
 
 func (me *MatchingEngine) Process(inOrder *Order, producerChannel chan<- Trade, pricePointChannel chan<- PricePoint) {
-	// var currentBook *map[float64][]*Order
-	var oppositeBook *map[float64][]*Order
-	// var currentBestPrice Heap
+	var oppositeBook *map[float64]*[]*Order
 	var oppositeBestPrice Heap
 	var inAction string
 	var outAction string
 	var comparator func(x, y float64) bool
 
 	if inOrder.Quantity > 0 {
-		// currentBook = &me.orderBook.PriceToBuyOrders
 		oppositeBook = &me.orderBook.PriceToSellOrders
-		// currentBestPrice = me.orderBook.BestBid
 		oppositeBestPrice = me.orderBook.BestAsk
 		inAction = "BUY"
 		outAction = "SELL"
 		comparator = func(x, y float64) bool { return x >= y }
 	} else {
-		// currentBook = &me.orderBook.PriceToSellOrders
 		oppositeBook = &me.orderBook.PriceToBuyOrders
-		// currentBestPrice = me.orderBook.BestAsk
 		oppositeBestPrice = me.orderBook.BestBid
 		inAction = "SELL"
 		outAction = "BUY"
@@ -174,8 +168,8 @@ func (me *MatchingEngine) Process(inOrder *Order, producerChannel chan<- Trade, 
 	for inOrder.Quantity > 0 && oppositeBestPrice.Len() > 0 && comparator(inOrder.Price, oppositeBestPrice.Peak().(float64)) {
 		oppositeBestPriceQueue := (*oppositeBook)[oppositeBestPrice.Peak().(float64)]
 		// loop on nest price queue
-		for inOrder.Quantity > 0 && len(oppositeBestPriceQueue) > 0 {
-			outOrder := cut(0, &oppositeBestPriceQueue)
+		for inOrder.Quantity > 0 && len(*oppositeBestPriceQueue) > 0 {
+			outOrder := cut(0, oppositeBestPriceQueue)
 			tradeQuantity := Min(inOrder.Quantity, outOrder.Quantity)
 			price := outOrder.Price
 			tradeId := uuid.New().String()
@@ -201,10 +195,8 @@ func (me *MatchingEngine) Process(inOrder *Order, producerChannel chan<- Trade, 
 			if outOrder.Quantity > 0 {
 				me.orderBook.AddOrder(outOrder, outAction)
 			}
-
-			// TODO: if outOrder.Quantity == 0
 		}
-		if len(oppositeBestPriceQueue) == 0 {
+		if len(*oppositeBestPriceQueue) == 0 {
 			bestPrice := oppositeBestPrice.Pop().(float64)
 			delete(*oppositeBook, bestPrice)
 		}

@@ -4,6 +4,8 @@ import (
 	"container/heap"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestMinHeapPop(t *testing.T) {
@@ -89,25 +91,9 @@ func TestOrderBookAddOrder(t *testing.T) {
 	}
 
 	orderbook.AddOrder(&buyOrder, "BUY")
-	if orderbook.BestBid.Len() != 1 {
-		t.Errorf("got %d, wanted %d", orderbook.BestBid.Len(), 1)
-	}
-	if orderbook.BestBid.Peak() != price {
-		t.Errorf("got %f, wanted %f", orderbook.BestBid.Peak(), price)
-	}
-	if len(orderbook.PriceToBuyOrders) != 1 {
-		t.Errorf("got %d, wanted %d", len(orderbook.PriceToBuyOrders), 1)
-	}
-
-	if orderbook.BestAsk.Len() != 0 {
-		t.Errorf("got %d, wanted %d", orderbook.BestAsk.Len(), 0)
-	}
-	if orderbook.BestAsk.Peak() != nil {
-		t.Errorf("got %f, wanted %s", orderbook.BestAsk.Peak(), "nil")
-	}
-	if len(orderbook.PriceToSellOrders) != 0 {
-		t.Errorf("got %d, wanted %d", len(orderbook.PriceToSellOrders), 0)
-	}
+	assert.Equal(t, 1, orderbook.BestBid.Len())
+	assert.Equal(t, price, orderbook.BestBid.Peak())
+	assert.Equal(t, 1, len(orderbook.PriceToBuyOrders))
 
 	sellOrder := Order{
 		OrderID:   "uuid-uuid-uuid-uuid",
@@ -117,23 +103,11 @@ func TestOrderBookAddOrder(t *testing.T) {
 		Timestamp: now,
 	}
 	orderbook.AddOrder(&sellOrder, "SELL")
-	if orderbook.BestAsk.Len() != 1 {
-		t.Errorf("got %d, wanted %d", orderbook.BestAsk.Len(), 1)
-	}
-	if orderbook.BestAsk.Peak() != price {
-		t.Errorf("got %f, wanted %f", orderbook.BestAsk.Peak(), price)
-	}
-	if len(orderbook.PriceToSellOrders) != 1 {
-		t.Errorf("got %d, wanted %d", len(orderbook.PriceToSellOrders), 1)
-	}
+	assert.Equal(t, 1, orderbook.BestAsk.Len())
+	assert.Equal(t, price, orderbook.BestAsk.Peak())
+	assert.Equal(t, 1, len(orderbook.PriceToSellOrders))
 
-	if orderbook.BestBid.Len() != 1 {
-		t.Errorf("got %d, wanted %d", orderbook.BestBid.Len(), 1)
-	}
-	if orderbook.BestBid.Peak() != price {
-		t.Errorf("got %f, wanted %f", orderbook.BestBid.Peak(), price)
-	}
-	if len(orderbook.PriceToBuyOrders) != 1 {
-		t.Errorf("got %d, wanted %d", len(orderbook.PriceToBuyOrders), 1)
-	}
+	assert.Equal(t, 1, orderbook.BestBid.Len())
+	assert.Equal(t, price, orderbook.BestBid.Peak())
+	assert.Equal(t, 1, len(orderbook.PriceToBuyOrders))
 }

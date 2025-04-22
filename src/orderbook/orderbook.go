@@ -64,42 +64,42 @@ type Orderbook struct {
 	BestAsk       *MinHeap
 	PriceToVolume map[float64]float64
 	// indexes + containers
-	PriceToBuyOrders  map[float64][]*Order
-	PriceToSellOrders map[float64][]*Order
+	PriceToBuyOrders  map[float64]*[]*Order
+	PriceToSellOrders map[float64]*[]*Order
 }
 
 func NewOrderBook() *Orderbook {
 	o := new(Orderbook)
 	o.BestBid = &MaxHeap{}
 	o.BestAsk = &MinHeap{}
-	o.PriceToBuyOrders = make(map[float64][]*Order)
-	o.PriceToSellOrders = make(map[float64][]*Order)
+	o.PriceToBuyOrders = make(map[float64]*[]*Order)
+	o.PriceToSellOrders = make(map[float64]*[]*Order)
 	return o
 }
 
-func (o *Orderbook) AddOrder(order *Order, orderType string) {
+func (o *Orderbook) AddOrder(order *Order, orderAction string) {
 	// Add order in orderbook
 	// Rules:
 	// - Hashmap of orders are indexes used to assess price in heaps exist
 	// - Orders are added at the end of the list of orders
 	price := order.Price
 
-	if orderType == "BUY" {
+	if orderAction == "BUY" {
 		val, ok := o.PriceToBuyOrders[price]
 		if ok {
-			o.PriceToBuyOrders[price] = append(val, order)
+			*val = append(*val, order)
 		} else {
 			o.BestBid.Push(price)
-			o.PriceToBuyOrders[price] = []*Order{order}
+			o.PriceToBuyOrders[price] = &[]*Order{order}
 		}
 	}
-	if orderType == "SELL" {
+	if orderAction == "SELL" {
 		val, ok := o.PriceToSellOrders[price]
 		if ok {
-			o.PriceToSellOrders[price] = append(val, order)
+			*val = append(*val, order)
 		} else {
 			o.BestAsk.Push(price)
-			o.PriceToSellOrders[price] = []*Order{order}
+			o.PriceToSellOrders[price] = &[]*Order{order}
 		}
 	}
 }
