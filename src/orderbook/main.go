@@ -6,9 +6,9 @@ import (
 )
 
 // utils
-func cut(i int, xs *[]*Order) *Order {
-	y := (*xs)[i]
-	*xs = append((*xs)[:i], (*xs)[i+1:]...)
+func cut(i int, orderSlicesRef *[]*Order) *Order {
+	y := (*orderSlicesRef)[i]
+	*orderSlicesRef = append((*orderSlicesRef)[:i], (*orderSlicesRef)[i+1:]...)
 	return y
 }
 
