@@ -169,7 +169,7 @@ func (me *MatchingEngine) Process(inOrder *Order, producerChannel chan<- Trade, 
 		oppositeBestPriceQueue := (*oppositeBook)[oppositeBestPrice.Peak().(float64)]
 		// loop on nest price queue
 		for inOrder.Quantity > 0 && len(*oppositeBestPriceQueue) > 0 {
-			outOrder := cut(0, oppositeBestPriceQueue)
+			outOrder, _ := cut(0, oppositeBestPriceQueue)
 			tradeQuantity := Min(inOrder.Quantity, outOrder.Quantity)
 			price := outOrder.Price
 			tradeId := uuid.New().String()
