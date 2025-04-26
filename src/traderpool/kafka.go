@@ -3,17 +3,17 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"time"
-
 	"github.com/IBM/sarama"
-	"github.com/google/uuid"
 )
 
 type KafkaClient struct {
-	commonConfig   *sarama.Config
-	consumerConfig *sarama.Config
-	producerConfig *sarama.Config
-	brokers        []string
+	commonConfig    *sarama.Config
+	consumerConfig  *sarama.Config
+	producerConfig  *sarama.Config
+	brokers         []string
+	tradeTopic      string
+	quoteTopic      string
+	pricePointTopic string
 }
 
 func NewKafkaClient() *KafkaClient {
@@ -36,6 +36,10 @@ func NewKafkaClient() *KafkaClient {
 	kc.producerConfig.Producer.Idempotent = true
 	kc.producerConfig.Net.MaxOpenRequests = 1
 	kc.producerConfig.Producer.Return.Successes = true
+
+	kc.pricePointTopic = "order.last_price.topic"
+	kc.tradeTopic = "trades.topic"
+	kc.quoteTopic = "orders.topic"
 	return kc
 }
 
@@ -99,18 +103,6 @@ func (kc *KafkaClient) Assign(master sarama.Consumer, topic string) (chan *saram
 	}(topic, consumer)
 
 	return consumers, errors
-}
-
-func publishOrder(quantity int64, target float64) Order {
-	newUUID := uuid.New()
-	order := Order{
-		OrderID:   newUUID.String(),
-		OrderType: "limit",
-		Price:     target,
-		Quantity:  quantity,
-		Timestamp: float64(time.Now().Unix()),
-	}
-	return order
 }
 
 func handleError(err error) {
