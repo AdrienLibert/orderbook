@@ -10,24 +10,28 @@ import (
 func GenerateAndPushOrder(traderID string, price float64, orderChannel chan<- Order) {
 	orderID := fmt.Sprintf("%s-%d", traderID, time.Now().UnixNano())
 
-	orderType := "buy"
-	if rand.Float64() < 0.5 {
-		orderType = "sell"
-	}
-
 	quantity := int64(10 + rand.Intn(30))
-	adjustedPrice := price
-	if orderType == "buy" {
-		adjustedPrice = price * 1.01
-	} else {
-		adjustedPrice = price * 0.99
+	if rand.Float64() < 0.5 {
+		quantity = -quantity
 	}
 
-	timestamp := float64(time.Now().UnixNano()) / 1e9
+	adjustedPrice := price
+	switch {
+	case rand.Float64() < 0.25:
+		adjustedPrice = price * 1.05
+	case rand.Float64() < 0.5:
+		adjustedPrice = price * 1.01
+	case rand.Float64() < 0.75:
+		adjustedPrice = price * 0.99
+	default:
+		adjustedPrice = price * 0.95
+	}
+
+	timestamp := int64(time.Now().UnixNano()) / 1e9
 
 	order := Order{
 		OrderID:   orderID,
-		OrderType: orderType,
+		OrderType: "limit",
 		Price:     adjustedPrice,
 		Quantity:  quantity,
 		Timestamp: timestamp,

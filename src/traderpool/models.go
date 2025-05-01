@@ -5,17 +5,18 @@ type Order struct {
 	OrderType string  `json:"order_type"`
 	Price     float64 `json:"price"`
 	Quantity  int64   `json:"quantity"`
-	Timestamp float64 `json:"timestamp"`
+	Timestamp int64   `json:"timestamp"`
 }
 
 type Trade struct {
-	OrderId  string  `json:"order_id"`
-	Quantity int64   `json:"quantity"`
-	Price    float64 `json:"price"`
-	Action   string  `json:"action"`
-	Status   string  `json:"status"`
+	TradeId   string  `json:"trade_id"`
+	OrderId   string  `json:"order_id"`
+	Quantity  int64   `json:"quantity"`
+	Price     float64 `json:"price"`
+	Action    string  `json:"action"`
+	Status    string  `json:"status"`
+	Timestamp int64   `json:"timestamp"`
 }
-
 type PricePoint struct {
 	Price float64 `json:"price"`
 }

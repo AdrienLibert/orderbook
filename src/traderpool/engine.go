@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func (kc *KafkaClient) Start(numTraders int) {
+func Start(numTraders int, kc *KafkaClient) {
 	orderProducer := kc.GetProducer()
 	if orderProducer == nil {
 		fmt.Println("ERROR: Kafka producer is nil! Exiting.")
@@ -55,7 +55,7 @@ func (kc *KafkaClient) Start(numTraders int) {
 				trade, err := convertMessageToTrade(msg.Value)
 				if err != nil {
 					handleError(err)
-				} else {
+				} else if trade.Status == "closed" {
 					consumedCount++
 					priceChannel <- trade.Price
 					fmt.Printf("INFO: Stored price in priceListChannel: %.2f\n", trade.Price)
@@ -67,7 +67,7 @@ func (kc *KafkaClient) Start(numTraders int) {
 
 			case <-time.After(5 * time.Second):
 				fmt.Println("INFO: No messages consumed, requesting mid price")
-				RequestMidPrice(priceConsumer)
+				priceChannel <- RequestMidPrice(priceConsumer)
 			}
 		}
 	}(priceListChannel)

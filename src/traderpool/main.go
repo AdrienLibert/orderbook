@@ -31,5 +31,5 @@ func main() {
 	fmt.Printf("NUM_TRADERS %d\n", numTraders)
 
 	kc := NewKafkaClient()
-	kc.Start(numTraders)
+	Start(numTraders, kc)
 }

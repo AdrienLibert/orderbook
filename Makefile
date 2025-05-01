@@ -8,6 +8,8 @@ build_orderbook:
 build_traderpool:
 	docker build --no-cache -t local/traderpool -f src/traderpool/Dockerfile src/traderpool/
 
+build: build_kafkainit build_orderbook build_traderpool
+
 helm:
 	helm repo add bitnami https://charts.bitnami.com/bitnami
 	helm repo update
