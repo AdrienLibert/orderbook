@@ -3,8 +3,10 @@ package main
 import (
 	"fmt"
 	"github.com/IBM/sarama"
+	"math/rand"
 	"os"
 	"os/signal"
+	"strconv"
 	"time"
 )
 
@@ -25,7 +27,7 @@ func Start(numTraders int, kc *KafkaClient) {
 	producedCount := 0
 
 	orderListChannel := make(chan Order, 10)
-	priceListChannel := make(chan float64, 10)
+	priceListChannel := make(chan Trader, 10)
 
 	go func(orderMessage <-chan Order) {
 		for msg := range orderMessage {
@@ -48,18 +50,17 @@ func Start(numTraders int, kc *KafkaClient) {
 	}(orderListChannel)
 
 	consumeChannel := make(chan struct{})
-	go func(priceChannel chan<- float64) {
+	go func(priceChannel chan<- Trader) {
 		for {
 			select {
 			case msg := <-consumer:
 				trade, err := convertMessageToTrade(msg.Value)
 				if err != nil {
-					handleError(err)
-				} else if trade.Status == "closed" {
-					consumedCount++
-					priceChannel <- trade.Price
-					fmt.Printf("INFO: Stored price in priceListChannel: %.2f\n", trade.Price)
+					return
 				}
+				consumedCount++
+				priceChannel <- Trader{Price: trade.Price, TradeId: trade.TradeId}
+				fmt.Printf("INFO: Stored price in priceListChannel: %.2f\n", trade.Price)
 			case consumerError := <-errors:
 				consumedCount++
 				fmt.Println("ERROR: received trade consumerError:", consumerError.Err)
@@ -67,7 +68,7 @@ func Start(numTraders int, kc *KafkaClient) {
 
 			case <-time.After(5 * time.Second):
 				fmt.Println("INFO: No messages consumed, requesting mid price")
-				priceChannel <- RequestMidPrice(priceConsumer)
+				priceChannel <- Trader{Price: RequestMidPrice(priceConsumer), TradeId: fmt.Sprintf("Trader-%d", strconv.Itoa(rand.Intn(numTraders)))}
 			}
 		}
 	}(priceListChannel)

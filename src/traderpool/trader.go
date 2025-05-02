@@ -7,24 +7,27 @@ import (
 	"time"
 )
 
-func GenerateAndPushOrder(traderID string, price float64, orderChannel chan<- Order) {
-	orderID := fmt.Sprintf("%s-%d", traderID, time.Now().UnixNano())
+func GenerateAndPushOrder(trader Trader, orderChannel chan<- Order) {
+	orderID := fmt.Sprintf("%s-%d", trader.TradeId, time.Now().UnixNano())
 
 	quantity := int64(10 + rand.Intn(30))
 	if rand.Float64() < 0.5 {
 		quantity = -quantity
 	}
 
-	adjustedPrice := price
-	switch {
-	case rand.Float64() < 0.25:
-		adjustedPrice = price * 1.05
-	case rand.Float64() < 0.5:
-		adjustedPrice = price * 1.01
-	case rand.Float64() < 0.75:
-		adjustedPrice = price * 0.99
-	default:
-		adjustedPrice = price * 0.95
+	adjustedPrice := trader.Price
+	if quantity > 0 {
+		if rand.Float64() < 0.3 {
+			adjustedPrice = trader.Price * (1 + rand.Float64()*0.01)
+		} else {
+			adjustedPrice = trader.Price * (1 - rand.Float64()*0.01)
+		}
+	} else {
+		if rand.Float64() < 0.3 {
+			adjustedPrice = trader.Price * (1 - rand.Float64()*0.01)
+		} else {
+			adjustedPrice = trader.Price * (1 + rand.Float64()*0.01)
+		}
 	}
 
 	timestamp := int64(time.Now().UnixNano()) / 1e9
@@ -38,13 +41,15 @@ func GenerateAndPushOrder(traderID string, price float64, orderChannel chan<- Or
 	}
 
 	orderChannel <- order
-	fmt.Printf("INFO: Trader %s generated order from price %.2f: %+v\n", traderID, price, order)
+	fmt.Printf("INFO: Trader %s generated order from price %.2f: %+v\n", trader.TradeId, trader.Price, order)
 }
 
-func StartTrader(traderID string, priceChannel <-chan float64, orderChannel chan<- Order) {
+func StartTrader(traderID string, priceChannel <-chan Trader, orderChannel chan<- Order) {
 	go func() {
-		for price := range priceChannel {
-			GenerateAndPushOrder(traderID, price, orderChannel)
+		for trader := range priceChannel {
+			if trader.TradeId == traderID {
+				GenerateAndPushOrder(trader, orderChannel)
+			}
 		}
 		fmt.Printf("INFO: Trader %s stopped, priceListChannel closed\n", traderID)
 	}()
