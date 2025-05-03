@@ -14,24 +14,24 @@ func TestMachingEngineProcessIterative(t *testing.T) {
 	now := time.Now().UTC().Unix()
 
 	// 1. Add a buy order
-	buyPrice := 10.0
-	buyOrder := Order{
+	firstBuyPrice := 10.0
+	firstBuyOrder := Order{
 		OrderID:   "buy-uuid-uuid-uuid",
 		OrderType: "limit",
-		Price:     buyPrice,
+		Price:     firstBuyPrice,
 		Quantity:  20.0,
 		Timestamp: now,
 	}
-	machingEngine.Process(&buyOrder, nil, nil)
+	machingEngine.Process(&firstBuyOrder, nil, nil)
 	// One element in buy book
-	assert.Equal(t, orderbook.BestBid.Len(), 1)
-	assert.Equal(t, orderbook.BestBid.Peak(), buyPrice)
-	assert.Equal(t, len(orderbook.PriceToBuyOrders), 1)
-	assert.Equal(t, orderbook.PriceToBuyOrders[buyPrice], []*Order{&buyOrder})
+	assert.Equal(t, 1, orderbook.BestBid.Len())
+	assert.Equal(t, firstBuyPrice, orderbook.BestBid.Peak())
+	assert.Equal(t, 1, len(orderbook.PriceToBuyOrders))
+	assert.Equal(t, &[]*Order{&firstBuyOrder}, orderbook.PriceToBuyOrders[firstBuyPrice])
 	// No element in sell book
-	assert.Equal(t, orderbook.BestAsk.Len(), 0)
-	assert.Equal(t, orderbook.BestAsk.Peak(), nil)
-	assert.Equal(t, len(orderbook.PriceToSellOrders), 0)
+	assert.Equal(t, 0, orderbook.BestAsk.Len())
+	assert.Equal(t, nil, orderbook.BestAsk.Peak())
+	assert.Equal(t, 0, len(orderbook.PriceToSellOrders))
 
 	// 2. Add a sell order with higher price
 	sellPrice := 11.0
@@ -39,23 +39,23 @@ func TestMachingEngineProcessIterative(t *testing.T) {
 		OrderID:   "sell-uuid-uuid-uuid",
 		OrderType: "limit",
 		Price:     sellPrice,
-		Quantity:  -20.0,
+		Quantity:  -25.0,
 		Timestamp: now,
 	}
 	machingEngine.Process(&sellOrder, nil, nil)
 	// One element in buy book
-	assert.Equal(t, orderbook.BestBid.Len(), 1)
-	assert.Equal(t, orderbook.BestBid.Peak(), buyPrice)
-	assert.Equal(t, len(orderbook.PriceToBuyOrders), 1)
-	assert.Equal(t, orderbook.PriceToBuyOrders[buyPrice], []*Order{&buyOrder})
+	assert.Equal(t, 1, orderbook.BestBid.Len())
+	assert.Equal(t, firstBuyPrice, orderbook.BestBid.Peak())
+	assert.Equal(t, 1, len(orderbook.PriceToBuyOrders))
+	assert.Equal(t, &[]*Order{&firstBuyOrder}, orderbook.PriceToBuyOrders[firstBuyPrice])
 
 	// One element in sell book
-	assert.Equal(t, orderbook.BestAsk.Len(), 1)
-	assert.Equal(t, orderbook.BestAsk.Peak(), sellPrice)
-	assert.Equal(t, len(orderbook.PriceToSellOrders), 1)
-	assert.Equal(t, orderbook.PriceToSellOrders[sellPrice], []*Order{&sellOrder})
+	assert.Equal(t, 1, orderbook.BestAsk.Len())
+	assert.Equal(t, sellPrice, orderbook.BestAsk.Peak())
+	assert.Equal(t, 1, len(orderbook.PriceToSellOrders))
+	assert.Equal(t, &[]*Order{&sellOrder}, orderbook.PriceToSellOrders[sellPrice])
 
-	// 3. Add a matching buy Order which empties the sell side
+	// 3. Add a matching buy Order which reduces the sell side
 	newBuyPrice := 11.0
 	newBuyOrder := Order{
 		OrderID:   "new-buy-uuid-uuid",
@@ -66,13 +66,35 @@ func TestMachingEngineProcessIterative(t *testing.T) {
 	}
 	machingEngine.Process(&newBuyOrder, nil, nil)
 	// One element in buy book
-	assert.Equal(t, orderbook.BestBid.Len(), 1)
-	assert.Equal(t, orderbook.BestBid.Peak(), buyPrice)
-	assert.Equal(t, len(orderbook.PriceToBuyOrders), 1)
-	assert.Equal(t, orderbook.PriceToBuyOrders[buyPrice], []*Order{&buyOrder})
+	assert.Equal(t, 1, orderbook.BestBid.Len())
+	assert.Equal(t, firstBuyPrice, orderbook.BestBid.Peak())
+	assert.Equal(t, 1, len(orderbook.PriceToBuyOrders))
+	assert.Equal(t, &[]*Order{&firstBuyOrder}, orderbook.PriceToBuyOrders[firstBuyPrice])
 
-	// No more element in sell book
-	assert.Equal(t, orderbook.BestAsk.Len(), 0)
-	assert.Equal(t, orderbook.BestAsk.Peak(), nil)
-	assert.Equal(t, len(orderbook.PriceToSellOrders), 0)
+	// One element in sell book (but partially filled)
+	assert.Equal(t, 1, orderbook.BestAsk.Len())
+	assert.Equal(t, sellPrice, orderbook.BestAsk.Peak())
+	assert.Equal(t, 1, len(orderbook.PriceToSellOrders))
+	assert.Equal(t, &[]*Order{&sellOrder}, orderbook.PriceToSellOrders[sellPrice])
+
+	// 4. Empty sell side with last buy Order
+	lastBuyPrice := 11.0
+	lastBuyOrder := Order{
+		OrderID:   "new-buy-uuid-uuid",
+		OrderType: "limit",
+		Price:     lastBuyPrice,
+		Quantity:  20.0,
+		Timestamp: now,
+	}
+	machingEngine.Process(&lastBuyOrder, nil, nil)
+	// Two element in buy book: the first and the last (partial)
+	assert.Equal(t, 2, orderbook.BestBid.Len())
+	assert.Equal(t, firstBuyPrice, orderbook.BestBid.Peak())
+	assert.Equal(t, 2, len(orderbook.PriceToBuyOrders))
+	assert.Equal(t, &[]*Order{&firstBuyOrder}, orderbook.PriceToBuyOrders[firstBuyPrice])
+
+	// No element in sell book
+	assert.Equal(t, 0, orderbook.BestAsk.Len())
+	assert.Equal(t, nil, orderbook.BestAsk.Peak())
+	assert.Equal(t, 0, len(orderbook.PriceToSellOrders))
 }
