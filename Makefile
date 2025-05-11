@@ -8,6 +8,8 @@ build_orderbook:
 build_traderpool:
 	docker build --no-cache -t local/traderpool -f src/traderpool/Dockerfile src/traderpool/
 
+build: build_kafkainit build_orderbook build_traderpool
+
 helm:
 	helm repo add bitnami https://charts.bitnami.com/bitnami
 	helm repo update
@@ -26,10 +28,10 @@ stop_deps:
 	helm uninstall --ignore-not-found bitnami -n orderbook
 	kubectl delete --ignore-not-found pvc data-bitnami-kafka-controller-0 -n orderbook
 
-start: start_infra
+start: start_infra start_deps
 	helm install orderbook ./chart --namespace orderbook
 
-stop:
+stop: stop_deps
 	helm uninstall --ignore-not-found orderbook --namespace orderbook
 
 # Need virtual env or python setup with requirements installed
