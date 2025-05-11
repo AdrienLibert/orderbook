@@ -28,10 +28,10 @@ stop_deps:
 	helm uninstall --ignore-not-found bitnami -n orderbook
 	kubectl delete --ignore-not-found pvc data-bitnami-kafka-controller-0 -n orderbook
 
-start: start_infra
+start: start_infra start_deps
 	helm install orderbook ./chart --namespace orderbook
 
-stop:
+stop: stop_deps
 	helm uninstall --ignore-not-found orderbook --namespace orderbook
 
 # Need virtual env or python setup with requirements installed

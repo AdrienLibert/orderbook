@@ -3,10 +3,8 @@ package main
 import (
 	"fmt"
 	"github.com/IBM/sarama"
-	"math/rand"
 	"os"
 	"os/signal"
-	"strconv"
 	"time"
 )
 
@@ -66,9 +64,11 @@ func Start(numTraders int, kc *KafkaClient) {
 				fmt.Println("ERROR: received trade consumerError:", consumerError.Err)
 				consumeChannel <- struct{}{}
 
-			case <-time.After(5 * time.Second):
+			case <-time.After(2 * time.Second):
 				fmt.Println("INFO: No messages consumed, requesting mid price")
-				priceChannel <- Trader{Price: RequestMidPrice(priceConsumer), TradeId: fmt.Sprintf("Trader-%d", strconv.Itoa(rand.Intn(numTraders)))}
+				for i := 0; i < numTraders; i++ {
+					priceChannel <- Trader{Price: RequestMidPrice(priceConsumer), TradeId: fmt.Sprintf("Trader-%d", i+1)}
+				}
 			}
 		}
 	}(priceListChannel)

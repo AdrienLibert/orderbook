@@ -9,24 +9,26 @@ import (
 
 func GenerateAndPushOrder(trader Trader, orderChannel chan<- Order) {
 	orderID := fmt.Sprintf("%s-%d", trader.TradeId, time.Now().UnixNano())
+	seed := time.Now().UnixNano()
+	rng := rand.New(rand.NewSource(seed))
 
-	quantity := int64(10 + rand.Intn(30))
-	if rand.Float64() < 0.5 {
+	quantity := int64(10 + rng.Intn(30))
+	if rng.Float64() < 0.5 {
 		quantity = -quantity
 	}
 
 	adjustedPrice := trader.Price
 	if quantity > 0 {
-		if rand.Float64() < 0.3 {
-			adjustedPrice = trader.Price * (1 + rand.Float64()*0.01)
+		if rng.Float64() < 0.3 {
+			adjustedPrice = trader.Price * (1 + rng.Float64()*0.01)
 		} else {
-			adjustedPrice = trader.Price * (1 - rand.Float64()*0.01)
+			adjustedPrice = trader.Price * (1 - rng.Float64()*0.01)
 		}
 	} else {
-		if rand.Float64() < 0.3 {
-			adjustedPrice = trader.Price * (1 - rand.Float64()*0.01)
+		if rng.Float64() < 0.3 {
+			adjustedPrice = trader.Price * (1 - rng.Float64()*0.01)
 		} else {
-			adjustedPrice = trader.Price * (1 + rand.Float64()*0.01)
+			adjustedPrice = trader.Price * (1 + rng.Float64()*0.01)
 		}
 	}
 
@@ -48,6 +50,7 @@ func StartTrader(traderID string, priceChannel <-chan Trader, orderChannel chan<
 	go func() {
 		for trader := range priceChannel {
 			if trader.TradeId == traderID {
+				fmt.Println("test")
 				GenerateAndPushOrder(trader, orderChannel)
 			}
 		}
