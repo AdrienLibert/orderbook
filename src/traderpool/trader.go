@@ -2,37 +2,29 @@ package main
 
 import (
 	"fmt"
-	"github.com/IBM/sarama"
 	"math/rand"
 	"time"
 )
 
 func GenerateAndPushOrder(trader Trader, orderChannel chan<- Order) {
 	orderID := fmt.Sprintf("%s-%d", trader.TradeId, time.Now().UnixNano())
-	seed := time.Now().UnixNano()
-	rng := rand.New(rand.NewSource(seed))
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 
+	// Random quantity between 10 and 40, positive (buy) or negative (sell)
 	quantity := int64(10 + rng.Intn(30))
 	if rng.Float64() < 0.5 {
 		quantity = -quantity
 	}
 
-	adjustedPrice := trader.Price
-	if quantity > 0 {
-		if rng.Float64() < 0.3 {
-			adjustedPrice = trader.Price * (1 + rng.Float64()*0.01)
-		} else {
-			adjustedPrice = trader.Price * (1 - rng.Float64()*0.01)
-		}
-	} else {
-		if rng.Float64() < 0.3 {
-			adjustedPrice = trader.Price * (1 - rng.Float64()*0.01)
-		} else {
-			adjustedPrice = trader.Price * (1 + rng.Float64()*0.01)
-		}
+	priceAdjustment := rng.Float64() * 0.01
+	var adjustedPrice float64
+	if quantity > 0 { // Buy order
+		adjustedPrice = trader.Price*(1+priceAdjustment) + 0.5
+	} else { // Sell order
+		adjustedPrice = trader.Price*(1-priceAdjustment) - 0.5
 	}
 
-	timestamp := int64(time.Now().UnixNano()) / 1e9
+	timestamp := time.Now().Unix()
 
 	order := Order{
 		OrderID:   orderID,
@@ -44,35 +36,4 @@ func GenerateAndPushOrder(trader Trader, orderChannel chan<- Order) {
 
 	orderChannel <- order
 	fmt.Printf("INFO: Trader %s generated order from price %.2f: %+v\n", trader.TradeId, trader.Price, order)
-}
-
-func StartTrader(traderID string, priceChannel <-chan Trader, orderChannel chan<- Order) {
-	go func() {
-		for trader := range priceChannel {
-			if trader.TradeId == traderID {
-				fmt.Println("test")
-				GenerateAndPushOrder(trader, orderChannel)
-			}
-		}
-		fmt.Printf("INFO: Trader %s stopped, priceListChannel closed\n", traderID)
-	}()
-}
-
-func RequestMidPrice(priceConsumer <-chan *sarama.ConsumerMessage) float64 {
-	var midPrice float64
-	select {
-	case priceMsg := <-priceConsumer:
-		pricePoint, err := convertMessageToPricePoint(priceMsg.Value)
-		if err != nil {
-			fmt.Printf("ERROR: Failed to parse PricePoint: %v\n", err)
-			midPrice = 50.0
-		} else {
-			midPrice = pricePoint.Price
-			fmt.Printf("INFO: MidPrice set to: %.2f\n", midPrice)
-		}
-	default:
-		fmt.Println("INFO: No price message available, using default MidPrice")
-		midPrice = 50.0
-	}
-	return midPrice
 }
