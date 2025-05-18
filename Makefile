@@ -1,9 +1,9 @@
 # Build images for service
 build_kafkainit:
-	docker build -t local/kafka-init -f src/kafka_init/Dockerfile src/kafka_init/
+	docker build --no-cache -t local/kafka-init -f src/kafka_init/Dockerfile src/kafka_init/
 
 build_orderbook:
-	docker build -t local/orderbook -f src/orderbook/Dockerfile src/orderbook/
+	docker build --no-cache -t local/orderbook -f src/orderbook/Dockerfile src/orderbook/
 
 build_traderpool:
 	docker build --no-cache -t local/traderpool -f src/traderpool/Dockerfile src/traderpool/
